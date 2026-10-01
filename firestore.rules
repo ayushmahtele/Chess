@@ -1,0 +1,42 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+
+    // Each player's own profile, rating, settings and saved games: private to them.
+    match /users/{uid} {
+      allow read, write: if signedIn() && me() == uid;
+      match /{document=**} {
+        allow read, write: if signedIn() && me() == uid;
+      }
+    }
+
+    // Usernames are unique: one document per name, owned by exactly one player.
+    match /usernames/{name} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.uid == me()
+                    && name.matches('^[a-z0-9_]{3,20}$');
+      allow delete: if signedIn() && resource.data.uid == me();
+      allow update: if false;
+    }
+
+    // Online games: anyone signed in can see them; only the two players can change them.
+    match /onlineGames/{gameId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+                    && request.resource.data.createdBy == me()
+                    && request.resource.data.players == [me()]
+                    && request.resource.data.status == 'waiting';
+      allow update: if signedIn() && request.resource.data.createdBy == resource.data.createdBy && (
+        // a player in the game (moves, clocks, chat, draw offers, resign, rematch)
+        (me() in resource.data.players
+          && (resource.data.status == 'waiting' || request.resource.data.players == resource.data.players))
+        // joining an open game, or accepting/declining a challenge sent to you
+        || (resource.data.status == 'waiting'
+          && (resource.data.invitee == null || resource.data.invitee == me()))
+      );
+      allow delete: if signedIn() && resource.data.createdBy == me() && resource.data.status == 'waiting';
+    }
+  }
+}

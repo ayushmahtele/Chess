@@ -1,0 +1,3 @@
+{ "name": "Chess Arena", "short_name": "Chess Arena", "start_url": "/", "display": "standalone",
+  "background_color": "#16171a", "theme_color": "#16171a",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] }
