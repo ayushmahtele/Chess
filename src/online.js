@@ -3,6 +3,7 @@
 import { Chess } from 'chess.js';
 import { session, usernameOwner, cleanUsername } from './store/index.js';
 import { glicko2, inflateRd, START_RD, NEW_VOL } from './rating.js';
+import { avatarSrc } from './avatar.js';
 
 export const COLL = 'onlineGames';
 export const LAST_KEY = 'chessarena:lastOnline';
@@ -14,7 +15,7 @@ export function onlineRating(profile) {
 }
 function me(profile) {
   const o = onlineRating(profile);
-  return { name: profile.name, username: profile.username, rating: o.rating, rd: Math.round(o.rd), photo: session().user?.photo || null };
+  return { name: profile.name, username: profile.username, rating: o.rating, rd: Math.round(o.rd), photo: avatarSrc(profile, session().user) };
 }
 export const colorOf = (g, id = uid()) => g.white === id ? 'w' : g.black === id ? 'b' : null;
 export const opponentOf = (g, id = uid()) => g.players.find(p => p !== id) || null;

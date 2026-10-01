@@ -15,6 +15,7 @@ import { applyTheme, getPrefs, onPrefs } from './prefs.js';
 import { setSfxVolume } from './audio/sfx.js';
 import { initSession, onSession, session, cloudEnabled, friendlyError } from './store/index.js';
 import { isProvisional } from './rating.js';
+import { avatar } from './avatar.js';
 import { musicButton, closeMusic } from './views/music-panel.js';
 
 import { homeView } from './views/home.js';
@@ -74,7 +75,7 @@ function renderUser() {
   userSlot.append(musicButton());
   const { user } = session();
   if (profile) {
-    const pic = user?.photo ? h('img.avatar', { src: user.photo, alt: '', referrerpolicy: 'no-referrer' }) : h('span.avatar', (profile.name || '?')[0].toUpperCase());
+    const pic = avatar(profile, user);
     userSlot.append(h('a.user-chip', { href: '#/profile', title: 'Your profile' }, pic,
       h('span.nm', profile.name), h('span.r', profile.rating + (isProvisional(profile.rd) ? '?' : ''))));
   }

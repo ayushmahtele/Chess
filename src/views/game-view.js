@@ -8,6 +8,7 @@ import { botName } from '../config.js';
 import { isProvisional } from '../rating.js';
 import { session } from '../store/index.js';
 import { paintBar, scoreText } from '../evalbar.js';
+import { avatar as makeAvatar } from '../avatar.js';
 
 let game = null;
 export const activeGame = () => game;
@@ -94,8 +95,7 @@ export async function gameView(main, _p, ctx) {
     const isHuman = !G.isBot || color === G.cfg.color;
     if (G.isBot) {
       if (isHuman) {
-        const photo = session().user?.photo;
-        avatar.replaceWith(photo ? h('img.avatar', { src: photo, alt: '', referrerpolicy: 'no-referrer' }) : h('span.avatar', P.name[0].toUpperCase()));
+        avatar.replaceWith(makeAvatar(P, session().user));
         nameEl.textContent = P.name; rtEl.textContent = `(${P.rating}${isProvisional(P.rd) ? '?' : ''})`;
       } else {
         avatar.textContent = '🤖'; nameEl.textContent = botName(G.cfg.botElo); rtEl.textContent = `(${G.cfg.botElo})`;

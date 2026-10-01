@@ -2,6 +2,8 @@ import { h, clear, confirmBox, toast, fmtDate } from '../dom.js';
 import { icon } from '../icons.js';
 import { session, cloudEnabled, signOut, linkGoogle, addPassword, changePassword, claimUsername, friendlyError } from '../store/index.js';
 import { onlineRating } from '../online.js';
+import { avatar, avatarSrc } from '../avatar.js';
+import { openPhotoEditor } from './photo-editor.js';
 import { LEVELS, isProvisional } from '../rating.js';
 
 export async function profileView(main, _p, ctx) {
@@ -11,7 +13,12 @@ export async function profileView(main, _p, ctx) {
   const pct = n => total ? (n / total * 100) : 0;
 
   const nameIn = h('input.text-in', { value: P.name, maxlength: 24, 'aria-label': 'Display name' });
-  const photo = user?.photo ? h('img.avatar', { src: user.photo, alt: '', referrerpolicy: 'no-referrer' }) : h('span.avatar', P.name[0].toUpperCase());
+  const photo = h('button.avatar-edit', { title: 'Change profile picture', 'aria-label': 'Change profile picture', on: { click: async () => {
+    const result = await openPhotoEditor(avatarSrc(P, user));
+    if (result === null) return;
+    try { P.photo = result; await store.saveProfile(P); await ctx.refreshProfile(); toast(result === 'none' ? 'Profile picture removed' : 'Profile picture updated'); ctx.go('/profile'); }
+    catch (e) { toast('Could not save the picture: ' + (e.message || e), 'error'); }
+  } } }, avatar(P, user), h('span.cam', { 'aria-hidden': 'true' }, '📷'));
 
   main.append(h('div.page-head', h('h1', 'Profile')), h('div.profile', { style: { marginTop: '18px' } },
     h('div.side-stack',
