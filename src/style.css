@@ -692,3 +692,18 @@ main.full{padding-top:12px;padding-bottom:8px}
 .sp-body iframe{display:block;border:0;border-radius:12px}
 @media (max-width:1100px){ body.in-game .spotify-dock{bottom:calc(84px + env(safe-area-inset-bottom,0px))} }
 @media (max-width:760px){ body:not(.in-game) .spotify-dock{bottom:calc(76px + env(safe-area-inset-bottom,0px))} }
+/* Spotify inside the music panel */
+.spotify-dock{display:none!important}
+.sp-title{display:flex;align-items:center;gap:6px}
+.sp-title .sub{margin:0;flex:1}
+.sp-open,.sp-remove{font-size:.78rem;font-weight:700;border:0;background:transparent;color:var(--muted);padding:4px 6px;border-radius:6px;text-decoration:none}
+.sp-open:hover,.sp-remove:hover{background:var(--surface-2);color:var(--text)}
+.sp-remove{color:var(--red)}
+.sp-slot{height:152px;margin-top:8px;border-radius:12px;background:var(--surface-2)}
+.sp-host{position:fixed;z-index:31;border-radius:12px;overflow:hidden}
+.sp-host iframe{display:block;border:0;border-radius:12px;height:152px}
+.sp-host.parked{left:-10000px!important;top:0!important;width:320px!important;clip-path:none!important;pointer-events:none}
+.sp-help{margin-top:8px;font-size:.8rem;color:var(--muted)}
+.sp-help summary{font-weight:700;color:var(--text)}
+.sp-help ol{margin:8px 0 0;padding-left:18px;display:grid;gap:6px}
+.sp-help a{color:var(--gold)}

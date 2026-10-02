@@ -1,34 +1,47 @@
-// Spotify: play a pasted Spotify link through Spotify's official embedded player.
-// Full songs play when the listener is logged in to Spotify in this browser (otherwise Spotify gives previews).
+// Spotify inside the music panel, through Spotify's official embedded player.
+// The player lives in one fixed element that is positioned over a slot in the music panel while the panel is open,
+// and parked off-screen (still playing) while it is closed, so closing the panel never stops the music.
+// The chosen link is remembered per account (in the profile) and per device.
 import { h } from '../dom.js';
 
-const KEY = 'chessarena:spotify';
 const TYPES = ['track', 'album', 'playlist', 'artist', 'episode', 'show'];
-
-/** "https://open.spotify.com/intl-en/playlist/37i9…?si=…" or "spotify:playlist:37i9…" -> { type, id } */
 export function parseSpotify(text) {
   const s = String(text || '').trim();
   let m = s.match(/open\.spotify\.com\/(?:intl-[a-z-]+\/)?(?:embed\/)?(track|album|playlist|artist|episode|show)\/([A-Za-z0-9]{22})/);
   if (!m) m = s.match(/^spotify:(track|album|playlist|artist|episode|show):([A-Za-z0-9]{22})$/);
   return m && TYPES.includes(m[1]) ? { type: m[1], id: m[2] } : null;
 }
+export const spotifyUrl = l => `https://open.spotify.com/${l.type}/${l.id}`;
 
-const state = { link: null, open: false, small: false, playing: false, controller: null, listeners: new Set() };
-try { Object.assign(state, JSON.parse(localStorage.getItem(KEY) || '{}'), { playing: false, controller: null, listeners: new Set() }); } catch {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify({ link: state.link, open: state.open, small: state.small })); } catch {} };
+const state = { owner: 'guest', link: null, playing: false, controller: null, listeners: new Set() };
+const key = () => 'chessarena:spotify:' + state.owner;
 const emit = () => state.listeners.forEach(f => f(state));
+function readLocal() { try { return JSON.parse(localStorage.getItem(key()) || 'null'); } catch { return null; } }
+function writeLocal() { try { if (state.link) localStorage.setItem(key(), JSON.stringify(state.link)); else localStorage.removeItem(key()); } catch {} }
+// move the link saved by the earlier version (not tied to an account) to the guest slot once
+try { const old = JSON.parse(localStorage.getItem('chessarena:spotify') || 'null'); if (old?.link && !localStorage.getItem('chessarena:spotify:guest')) localStorage.setItem('chessarena:spotify:guest', JSON.stringify(old.link)); localStorage.removeItem('chessarena:spotify'); } catch {}
+
 export const spotify = {
-  get link() { return state.link; }, get open() { return state.open; }, get playing() { return state.playing; },
+  get link() { return state.link; }, get playing() { return state.playing; },
   on(f) { state.listeners.add(f); return () => state.listeners.delete(f); },
-  set(link) { state.link = link; state.open = true; state.small = false; save(); mount(); emit(); },
-  close() { state.open = false; state.playing = false; save(); unmount(); emit(); },
-  show() { if (state.link) { state.open = true; save(); mount(); emit(); } },
+  onPlay: null,          // set by the music player: pause the built-in music
+  onSave: null,          // set by the app: save the link to the signed-in profile
+  /** Called whenever the signed-in account (or its profile) is known. */
+  useAccount(owner, profileLink) {
+    const changed = owner !== state.owner;
+    state.owner = owner || 'guest';
+    const link = (profileLink && profileLink.id ? profileLink : null) || readLocal();
+    if (changed || link?.id !== state.link?.id) { state.link = link; writeLocal(); rebuild(); emit(); }
+  },
+  set(link) { state.link = link; writeLocal(); this.onSave?.(link); rebuild(); emit(); },
+  remove() { state.link = null; writeLocal(); this.onSave?.(null); state.playing = false; rebuild(); emit(); },
   pause() { try { state.controller?.pause?.(); } catch {} },
-  onPlay: null,            // set by the music player: pause the built-in music
+  attach(slot) { slotEl = slot; place(); },
+  detach() { slotEl = null; place(); },
 };
 
-/* ---------------- floating mini-player ---------------- */
-let dock = null, holder = null, apiPromise = null;
+/* ---------------- the player element ---------------- */
+let host = null, slotEl = null, apiPromise = null, raf = 0;
 function loadApi() {
   if (apiPromise) return apiPromise;
   apiPromise = new Promise((resolve, reject) => {
@@ -40,46 +53,48 @@ function loadApi() {
   });
   return apiPromise;
 }
-function mount() {
-  if (!state.open || !state.link) return;
-  if (!dock) {
-    holder = h('div.sp-body');
-    dock = h('div.spotify-dock', { role: 'region', 'aria-label': 'Spotify player' },
-      h('div.sp-head',
-        h('span.sp-logo', { 'aria-hidden': 'true' }, '●'), h('b', 'Spotify'),
-        h('button.sp-btn', { title: 'Smaller / larger', 'aria-label': 'Resize Spotify player', on: { click: () => { state.small = !state.small; save(); resize(); } } }, '⇕'),
-        h('button.sp-btn', { title: 'Close Spotify', 'aria-label': 'Close Spotify', on: { click: () => spotify.close() } }, '✕')),
-      holder);
-    document.body.append(dock);
-  }
+function rebuild() {
+  try { state.controller?.destroy?.(); } catch {}
+  state.controller = null; state.playing = false;
+  host?.remove(); host = null;
+  if (!state.link) { place(); return; }
+  host = h('div.sp-host', { 'aria-label': 'Spotify player' });
+  const target = h('div'); host.append(target);
+  document.body.append(host);
   const { type, id } = state.link;
-  holder.textContent = '';
-  const target = h('div');
-  holder.append(target);
-  state.controller = null;
-  const height = () => (state.small ? 80 : 152);
   loadApi().then(api => {
-    api.createController(target, { uri: `spotify:${type}:${id}`, width: '100%', height: height() }, ctl => {
+    if (!host || !host.contains(target)) return;
+    api.createController(target, { uri: `spotify:${type}:${id}`, width: '100%', height: 152 }, ctl => {
       state.controller = ctl;
       ctl.addListener('playback_update', e => {
         const playing = !e.data?.isPaused && !e.data?.isBuffering;
         if (playing && !state.playing) spotify.onPlay?.();
-        state.playing = playing; emit();
+        if (playing !== state.playing) { state.playing = playing; emit(); }
       });
     });
   }).catch(() => {
-    // Fallback: plain embed (no automatic pausing of the built-in music)
-    holder.textContent = '';
-    holder.append(h('iframe', { src: `https://open.spotify.com/embed/${type}/${id}?theme=0`, width: '100%', height: height(), allow: 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture', loading: 'lazy', title: 'Spotify player', style: { border: '0', borderRadius: '12px' } }));
+    if (!host) return;
+    host.textContent = '';
+    host.append(h('iframe', { src: `https://open.spotify.com/embed/${type}/${id}?theme=0`, width: '100%', height: 152, title: 'Spotify player',
+      allow: 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture', loading: 'lazy' }));
   });
-  resize();
+  place();
 }
-function resize() {
-  if (!dock) return;
-  dock.classList.toggle('small', state.small);
-  const f = dock.querySelector('iframe'); if (f) f.style.height = (state.small ? 80 : 152) + 'px';
+// Keep the player exactly over its slot in the open music panel; park it (still playing) when the panel is closed.
+function place() {
+  cancelAnimationFrame(raf);
+  if (!host) return;
+  if (!slotEl || !document.body.contains(slotEl)) { host.classList.add('parked'); host.style.cssText = ''; return; }
+  const step = () => {
+    if (!host || !slotEl || !document.body.contains(slotEl)) { host?.classList.add('parked'); return; }
+    const r = slotEl.getBoundingClientRect(), box = slotEl.closest('.drawer')?.getBoundingClientRect() || r;
+    host.classList.remove('parked');
+    host.style.left = r.left + 'px'; host.style.top = r.top + 'px'; host.style.width = r.width + 'px';
+    // hide the parts scrolled out of the panel
+    const top = Math.max(0, box.top - r.top), bottom = Math.max(0, r.bottom - box.bottom);
+    host.style.clipPath = `inset(${top}px 0 ${bottom}px 0 round 12px)`;
+    host.style.pointerEvents = top + bottom >= r.height ? 'none' : '';
+    raf = requestAnimationFrame(step);
+  };
+  step();
 }
-function unmount() { try { state.controller?.destroy?.(); } catch {} state.controller = null; dock?.remove(); dock = null; holder = null; }
-
-// restore after a page reload (stays paused until you press play — browsers block autoplay)
-if (state.open && state.link) setTimeout(mount, 800);

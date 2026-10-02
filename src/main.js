@@ -16,6 +16,7 @@ import { setSfxVolume } from './audio/sfx.js';
 import { initSession, onSession, session, cloudEnabled, friendlyError } from './store/index.js';
 import { isProvisional } from './rating.js';
 import { avatar } from './avatar.js';
+import { spotify } from './audio/spotify.js';
 import { musicButton, closeMusic } from './views/music-panel.js';
 
 import { homeView } from './views/home.js';
@@ -70,7 +71,11 @@ export const ctx = {
   go(path) { if (location.hash === '#' + path) route(); else location.hash = path; },
 };
 
+spotify.onSave = async link => {
+  try { const p = await session().store.getProfile(); if (p) { p.spotify = link; await session().store.saveProfile(p); profile = p; } } catch (e) { console.warn('Could not save Spotify link', e); }
+};
 function renderUser() {
+  spotify.useAccount(session().user?.uid || 'guest', profile?.spotify);
   clear(userSlot);
   userSlot.append(musicButton());
   const { user } = session();

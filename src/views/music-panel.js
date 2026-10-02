@@ -1,15 +1,15 @@
 import { h, clear } from '../dom.js';
 import { icon } from '../icons.js';
 import { music } from '../audio/music.js';
-import { spotify, parseSpotify } from '../audio/spotify.js';
+import { spotify, parseSpotify, spotifyUrl } from '../audio/spotify.js';
 import { getPrefs, setPref } from '../prefs.js';
 
 let drawer = null;
 
 export function musicButton() {
   const btn = h('button.icon-btn', { title: 'Music and sound', 'aria-label': 'Music and sound', on: { click: toggle } }, icon('music'));
-  const sync = () => btn.classList.toggle('on', music.playing);
-  sync(); music.on(sync);
+  const sync = () => btn.classList.toggle('on', music.playing || spotify.playing);
+  sync(); music.on(sync); spotify.on(sync);
   return btn;
 }
 
@@ -19,14 +19,15 @@ function toggle() {
   document.body.append(drawer);
   const off = music.on(render);
   const offTime = music.onTime(updateTime);
-  drawer._off = () => { off(); offTime(); };
+  const offSp = spotify.on(render);
+  drawer._off = () => { off(); offTime(); offSp(); spotify.detach(); };
   render();
   setTimeout(() => document.addEventListener('pointerdown', outside), 0);
   document.addEventListener('keydown', esc);
 }
 export function closeMusic() { close(); }
 function close() { if (!drawer) return; drawer._off(); drawer.remove(); drawer = null; document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', esc); }
-const outside = e => { if (drawer && !drawer.contains(e.target) && !e.target.closest('.icon-btn[title="Music and sound"]')) close(); };
+const outside = e => { if (drawer && !drawer.contains(e.target) && !e.target.closest('.sp-host') && !e.target.closest('.icon-btn[title="Music and sound"]')) close(); };
 const esc = e => { if (e.key === 'Escape') close(); };
 
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -55,20 +56,28 @@ function updateTime({ cur, dur }) {
 }
 
 function spotifySection() {
-  const input = h('input.text-in.sp-input', { placeholder: 'Paste a Spotify link (playlist, album, song…)', 'aria-label': 'Spotify link', value: '' });
+  const link = spotify.link;
+  const input = h('input.text-in.sp-input', { placeholder: link ? 'Paste a different Spotify link' : 'Paste a Spotify link (playlist, album, song…)', 'aria-label': 'Spotify link' });
   const err = h('p.note.sp-err');
   const go = () => {
-    const link = parseSpotify(input.value);
-    if (!link) { err.textContent = 'That is not a Spotify link. In Spotify use Share → Copy link, then paste it here.'; return; }
-    spotify.set(link); input.value = ''; err.textContent = '';
+    const l = parseSpotify(input.value);
+    if (!l) { err.textContent = 'That is not a Spotify link. In Spotify use Share → Copy link, then paste it here.'; return; }
+    spotify.set(l); input.value = ''; err.textContent = '';
   };
   input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
   return h('div.sp-section',
-    h('div.sub', 'Spotify'),
-    h('div.sp-row', input, h('button.btn', { on: { click: go } }, 'Play')),
+    h('div.sp-title', h('span.sp-logo', '●'), h('span.sub', 'Spotify'),
+      link && h('a.sp-open', { href: spotifyUrl(link), target: '_blank', rel: 'noopener' }, 'Open in Spotify ↗'),
+      link && h('button.sp-remove', { title: 'Remove this Spotify link', on: { click: () => spotify.remove() } }, 'Remove')),
+    link && h('div.sp-slot'),
+    h('div.sp-row', input, h('button.btn', { on: { click: go } }, link ? 'Change' : 'Add')),
     err,
-    spotify.link && !spotify.open && h('button.btn.ghost', { style: { width: '100%', marginTop: '6px' }, on: { click: () => spotify.show() } }, 'Show my Spotify player again'),
-    h('p.note', 'Plays in a small Spotify player that stays while you play. Full songs need you to be logged in to Spotify in this browser; otherwise Spotify plays previews. Use Spotify’s own player for its volume.'));
+    link && h('details.sp-help', h('summary', 'Only part of each song plays ("Preview")?'),
+      h('ol',
+        h('li', 'Log in at ', h('a', { href: 'https://open.spotify.com', target: '_blank', rel: 'noopener' }, 'open.spotify.com'), ' in this same browser, then come back and reload this page.'),
+        h('li', 'Still "Preview"? Your browser is blocking Spotify\'s login inside other websites (Incognito windows always do). In Chrome click the icon left of the web address → turn on ', h('b', 'Third-party cookies'), ' for this site, then reload.'),
+        h('li', 'Or use ', h('b', 'Open in Spotify ↗'), ': the Spotify app always plays full songs.'))),
+    !link && h('p.note', 'Your link is saved to your account, so it is here every time, on every device you sign in.'));
 }
 
 function render() {
@@ -102,4 +111,6 @@ function render() {
     spotifySection(),
   );
   updateTime(music.position);
+  const slot = drawer.querySelector('.sp-slot');
+  if (slot) spotify.attach(slot); else spotify.detach();
 }
