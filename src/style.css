@@ -742,3 +742,5 @@ body.no-profile main{padding-bottom:40px}
 .logo-name{font-family:var(--display);font-weight:700;font-size:1.25rem}
 .logo-tag{font-family:var(--ui);font-size:.66rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-top:2px}
 @media (max-width:640px){ .logo-tag{display:none} .logo-name{font-size:1.05rem} }
+/* Fold-out sections (<details>) don't pass box-sizing down, so set it directly: inputs/buttons must include their padding */
+details,details *,details *::before,details *::after{box-sizing:border-box}
