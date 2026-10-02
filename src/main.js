@@ -10,7 +10,7 @@ for (const proto of [Element.prototype, DocumentFragment.prototype]) {
 }
 import { h, $, clear, toast, confirmBox } from './dom.js';
 import { icon } from './icons.js';
-import { APP_NAME } from './config.js';
+import { APP_NAME, TAGLINE } from './config.js';
 import { applyTheme, getPrefs, onPrefs } from './prefs.js';
 import { setSfxVolume } from './audio/sfx.js';
 import { initSession, onSession, session, cloudEnabled, friendlyError, cancelSignup } from './store/index.js';
@@ -32,7 +32,7 @@ import { onlineGameView } from './views/online-game.js';
 import { joinGame, declineChallenge, COLL } from './online.js';
 import { TIME_CONTROLS } from './config.js';
 
-document.title = APP_NAME;
+document.title = `${APP_NAME} — ${TAGLINE}`;
 applyTheme(); setSfxVolume(getPrefs().sfxVolume);
 onPrefs(p => { applyTheme(); setSfxVolume(p.sfxVolume); });
 
@@ -71,7 +71,7 @@ const backBtn = h('button.backbtn', { 'aria-label': 'Go back', title: 'Back', on
   if (visited.length > 1) history.back(); else location.hash = '/';
 } } }, icon('back'), h('span', 'Back'));
 app.append(
-  h('header.topbar', h('a.logo', { href: '#/' }, h('img', { src: '/favicon.svg', alt: '' }), APP_NAME), nav, userSlot),
+  h('header.topbar', h('a.logo', { href: '#/', 'aria-label': `${APP_NAME}, ${TAGLINE}` }, h('img', { src: '/favicon.svg', alt: '' }), h('span.logo-text', h('span.logo-name', APP_NAME), h('span.logo-tag', TAGLINE))), nav, userSlot),
   backBtn, main, tabbar);
 
 let profile = null, cleanup = null, routing = 0;

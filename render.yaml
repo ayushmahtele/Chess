@@ -1,7 +1,7 @@
 # Optional: lets Render set up the site automatically ("Blueprint").
 services:
   - type: web
-    name: chess-arena
+    name: chess-throne
     runtime: static
     buildCommand: npm install && npm run build
     staticPublishPath: dist

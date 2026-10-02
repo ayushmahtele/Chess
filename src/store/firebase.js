@@ -24,7 +24,7 @@ const FRIENDLY = {
   'auth/too-many-requests': 'Too many attempts. Wait a minute and try again.',
   'auth/popup-closed-by-user': 'Google sign-in was closed before finishing.',
   'auth/cancelled-popup-request': 'Google sign-in was closed before finishing.',
-  'auth/credential-already-in-use': 'That Google account already has its own Chess Arena account. Sign out and sign in with Google to use it, or link a different Google account.',
+  'auth/credential-already-in-use': 'That Google account already has its own Chess Throne account. Sign out and sign in with Google to use it, or link a different Google account.',
   'auth/provider-already-linked': 'A Google account is already linked.',
   'auth/requires-recent-login': 'For your security, sign out and sign in again, then retry. (Linking your Google account avoids this.)',
   'auth/popup-blocked': 'Your browser blocked the Google window. Allow pop-ups for this site and try again.',
@@ -92,7 +92,7 @@ export function createFirebase(config, makeFakeDb) {
         await signOut(auth);
         throw Object.assign(new Error(d.passwordUsername
           ? `${d.email || 'This Gmail'} already belongs to @${d.passwordUsername}. Each Gmail can have only one account. Use "Continue with Google" on the Sign in tab.`
-          : `${d.email || 'This Gmail'} already has a Chess Arena account. Each Gmail can have only one account. Use "Continue with Google" on the Sign in tab.`), { code: 'gmail-used' });
+          : `${d.email || 'This Gmail'} already has a Chess Throne account. Each Gmail can have only one account. Use "Continue with Google" on the Sign in tab.`), { code: 'gmail-used' });
       }
       try { await linkWithCredential(user, EmailAuthProvider.credential(usernameEmail(config, u), pw)); }
       catch (e) {

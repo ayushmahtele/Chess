@@ -1,3 +1,3 @@
-{ "name": "Chess Arena", "short_name": "Chess Arena", "start_url": "/", "display": "standalone",
-  "background_color": "#16171a", "theme_color": "#16171a",
+{ "name": "Chess Throne — Rise To The Throne", "short_name": "Chess Throne", "description": "Play chess online with friends or against the computer. Rise To The Throne.",
+  "start_url": "/", "display": "standalone", "background_color": "#16171a", "theme_color": "#16171a",
   "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }] }

@@ -1,5 +1,6 @@
 // Change the site name here.
-export const APP_NAME = 'Chess Arena';
+export const APP_NAME = 'Chess Throne';
+export const TAGLINE = 'Rise To The Throne';
 
 export const TIME_CONTROLS = [
   { id: 'none', label: 'No clock', base: 0, inc: 0, group: 'Casual' },

@@ -216,7 +216,7 @@ export class Game {
     const r = this.result;
     const rated = this.cfg.rated && this.isBot && r.outcome !== 'aborted' && profile;
     this.chess.header('Event', this.isBot ? (rated ? 'Rated game vs computer' : 'Casual game vs computer') : 'Two-player game');
-    this.chess.header('Site', location.host || 'Chess Arena');
+    this.chess.header('Site', location.host || 'Chess Throne');
     this.chess.header('Date', new Date(this.startedAt).toISOString().slice(0, 10).replace(/-/g, '.'));
     const you = profile?.name || 'You';
     const botLabel = `${botName(this.cfg.botElo)} (${this.cfg.botElo})`;

@@ -225,7 +225,7 @@ class MusicPlayer {
   _session() {
     const ms = navigator.mediaSession; if (!ms) return;
     try {
-      ms.metadata = new MediaMetadata({ title: this.currentTrack.name, artist: this.currentTrack.builtin ? 'Chess Arena' : 'My songs' });
+      ms.metadata = new MediaMetadata({ title: this.currentTrack.name, artist: this.currentTrack.builtin ? 'Chess Throne' : 'My songs' });
       ms.playbackState = this.playing ? 'playing' : 'paused';
       ms.setActionHandler('play', () => this.resume());
       ms.setActionHandler('pause', () => this.pause());

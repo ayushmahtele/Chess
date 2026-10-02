@@ -737,3 +737,8 @@ body.no-profile main{padding-bottom:40px}
 .forgot-body .otp{letter-spacing:.5em;font-size:1.3rem;font-weight:800;text-align:center;font-variant-numeric:tabular-nums}
 .linkish{border:0;background:transparent;color:var(--gold);font-weight:700;padding:4px 0;justify-self:start;cursor:pointer}
 .forgot .btn.google{width:100%}
+/* logo with tagline */
+.logo-text{display:grid;line-height:1.05}
+.logo-name{font-family:var(--display);font-weight:700;font-size:1.25rem}
+.logo-tag{font-family:var(--ui);font-size:.66rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-top:2px}
+@media (max-width:640px){ .logo-tag{display:none} .logo-name{font-size:1.05rem} }

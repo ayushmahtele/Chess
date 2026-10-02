@@ -215,7 +215,7 @@ export async function saveFinished(g) {
     const chess = replay(g.moves);
     const label = id => `${g.p[id].name} (@${g.p[id].username})`;
     chess.setHeader('Event', g.rated ? 'Rated online game' : 'Casual online game');
-    chess.setHeader('Site', location.host || 'Chess Arena');
+    chess.setHeader('Site', location.host || 'Chess Throne');
     chess.setHeader('White', label(g.white)); chess.setHeader('Black', label(g.black));
     chess.setHeader('Result', g.result); chess.setHeader('Termination', g.reason);
     if (g.tc?.base) chess.setHeader('TimeControl', `${g.tc.base}+${g.tc.inc}`);

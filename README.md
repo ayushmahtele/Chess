@@ -1,4 +1,6 @@
-# Chess Arena
+# Chess Throne
+
+*Rise To The Throne*
 
 A complete chess website built on my own chess engine (originally `engine.py`, ported to JavaScript).
 
@@ -88,7 +90,7 @@ in **Vercel → Project → Settings → Environment Variables** (Production and
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT` | Firebase console → ⚙ Project settings → **Service accounts** → **Generate new private key**. Open the downloaded `.json` file in Notepad, copy **all** of it and paste it as the value. Keep this file secret and never commit it. |
 | `GMAIL_USER` | The Gmail address the codes are sent **from**, e.g. `yourname@gmail.com` |
-| `GMAIL_APP_PASSWORD` | A 16-letter **app password** for that Gmail: Google Account → Security → turn on **2-Step Verification** → search **App passwords** → create one named "Chess Arena". |
+| `GMAIL_APP_PASSWORD` | A 16-letter **app password** for that Gmail: Google Account → Security → turn on **2-Step Verification** → search **App passwords** → create one named "Chess Throne". |
 
 Then **Redeploy** (Deployments → ⋯ → Redeploy). Until these are set, "Forgot your password?" explains that email
 reset isn't set up yet, and players can still recover by signing in with Google.

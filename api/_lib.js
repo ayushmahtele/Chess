@@ -36,10 +36,10 @@ export const codeHash = (uid, code, exp) => crypto.createHmac('sha256', secret).
 export const mask = email => { const [n, d] = email.split('@'); return (n.length <= 2 ? n[0] + '*' : n.slice(0, 2) + '*'.repeat(Math.min(6, n.length - 2))) + '@' + d; };
 
 export async function sendCode(to, code) {
-  const subject = `${code} is your Chess Arena password reset code`;
-  const text = `Your Chess Arena password reset code is ${code}\n\nIt is valid for 10 minutes. If you didn't ask to reset your password, you can ignore this email.`;
+  const subject = `${code} is your Chess Throne password reset code`;
+  const text = `Your Chess Throne password reset code is ${code}\n\nIt is valid for 10 minutes. If you didn't ask to reset your password, you can ignore this email.`;
   const html = `<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;padding:24px;border:1px solid #ddd;border-radius:12px">
-    <h2 style="margin:0 0 8px">Chess Arena</h2><p>Your password reset code is:</p>
+    <h2 style="margin:0">Chess Throne</h2><p style="margin:2px 0 14px;color:#9c7200;font-weight:bold">Rise To The Throne</p><p>Your password reset code is:</p>
     <p style="font-size:34px;font-weight:bold;letter-spacing:8px;margin:12px 0">${code}</p>
     <p style="color:#555">It is valid for 10 minutes. If you didn't ask to reset your password, you can ignore this email.</p></div>`;
   if (process.env.MAIL_MODE === 'log') {                                  // local tests: write the email to a file
@@ -49,7 +49,7 @@ export async function sendCode(to, code) {
   const user = process.env.GMAIL_USER, pass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
   if (!user || !pass) throw new HttpError(503, 'Sending emails is not set up on this site yet. Use "Continue with Google" instead.');
   const t = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } });
-  await t.sendMail({ from: `"Chess Arena" <${user}>`, to, subject, text, html });
+  await t.sendMail({ from: `"Chess Throne" <${user}>`, to, subject, text, html });
 }
 
 /** Wrap a handler: POST + JSON only, friendly errors. */
