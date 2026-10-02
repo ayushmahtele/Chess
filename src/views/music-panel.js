@@ -1,6 +1,7 @@
 import { h, clear } from '../dom.js';
 import { icon } from '../icons.js';
 import { music } from '../audio/music.js';
+import { spotify, parseSpotify } from '../audio/spotify.js';
 import { getPrefs, setPref } from '../prefs.js';
 
 let drawer = null;
@@ -53,6 +54,23 @@ function updateTime({ cur, dur }) {
   r.style.setProperty('--p', dur ? (cur / dur * 100) + '%' : '0%');
 }
 
+function spotifySection() {
+  const input = h('input.text-in.sp-input', { placeholder: 'Paste a Spotify link (playlist, album, song…)', 'aria-label': 'Spotify link', value: '' });
+  const err = h('p.note.sp-err');
+  const go = () => {
+    const link = parseSpotify(input.value);
+    if (!link) { err.textContent = 'That is not a Spotify link. In Spotify use Share → Copy link, then paste it here.'; return; }
+    spotify.set(link); input.value = ''; err.textContent = '';
+  };
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  return h('div.sp-section',
+    h('div.sub', 'Spotify'),
+    h('div.sp-row', input, h('button.btn', { on: { click: go } }, 'Play')),
+    err,
+    spotify.link && !spotify.open && h('button.btn.ghost', { style: { width: '100%', marginTop: '6px' }, on: { click: () => spotify.show() } }, 'Show my Spotify player again'),
+    h('p.note', 'Plays in a small Spotify player that stays while you play. Full songs need you to be logged in to Spotify in this browser; otherwise Spotify plays previews. Use Spotify’s own player for its volume.'));
+}
+
 function render() {
   if (!drawer) return;
   const cur = music.currentTrack;
@@ -81,6 +99,7 @@ function render() {
     music.userSongs.length ? h('div.tracks', music.tracks.filter(t => !t.builtin).map(trackRow)) : h('p.note', 'Add songs you own from your device. They stay on this device and are never uploaded.'),
     file,
     h('button.btn', { style: { width: '100%', marginTop: '6px' }, on: { click: () => file.click() } }, icon('plus'), 'Add songs'),
+    spotifySection(),
   );
   updateTime(music.position);
 }

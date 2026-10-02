@@ -676,3 +676,19 @@ main.full{padding-top:12px;padding-bottom:8px}
   body:not(.in-game) .backbtn{position:static;margin:12px 0 0 max(12px,calc((100vw - 1320px)/2 + 20px))}
   body:not(.in-game) main{padding-top:8px}
 }
+/* Spotify */
+.sp-section{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.sp-row{display:flex;gap:6px;margin-top:8px}
+.sp-row .text-in{height:40px;max-width:none;flex:1;min-width:0;font-size:.85rem}
+.sp-err:empty{display:none}
+.sp-err{color:var(--red)}
+.spotify-dock{position:fixed;left:16px;bottom:16px;z-index:35;width:min(340px,calc(100vw - 32px));background:var(--surface);border:1px solid var(--line);
+  border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.sp-head{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 12px;font-size:.85rem}
+.sp-head b{flex:1}
+.sp-logo{color:#1ed760;font-size:1rem;line-height:1}
+.sp-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);display:grid;place-items:center;font-size:.85rem}
+.sp-body{padding:0 8px 8px}
+.sp-body iframe{display:block;border:0;border-radius:12px}
+@media (max-width:1100px){ body.in-game .spotify-dock{bottom:calc(84px + env(safe-area-inset-bottom,0px))} }
+@media (max-width:760px){ body:not(.in-game) .spotify-dock{bottom:calc(76px + env(safe-area-inset-bottom,0px))} }

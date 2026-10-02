@@ -3,6 +3,7 @@
 //  - "My songs": players can add audio files they own; files are kept on
 //    their own device (IndexedDB) and are never uploaded anywhere.
 import { audioCtx, noiseBuffer } from './ctx.js';
+import { spotify } from './spotify.js';
 
 const BUILTIN = [
   { id: 'lofi', name: 'Midnight Lo-fi', builtin: true },
@@ -185,6 +186,7 @@ class MusicPlayer {
     this.stop(); this.emit();
   }
   async resume() {
+    spotify.pause();
     if (this._audio && this.currentTrack.id === this.current && !this.currentTrack.builtin) {
       try { await this._audio.play(); this.playing = true; } catch (e) { console.warn(e); }
       this._session(); this.emit(); return;
@@ -200,6 +202,7 @@ class MusicPlayer {
     this._time();
   }
   async play(id = this.current) {
+    spotify.pause();
     if (id === this.current && this._audio && !this.playing) return this.resume();
     this.stop();
     this.current = id; this.playing = true;
@@ -270,3 +273,4 @@ class MusicPlayer {
 }
 
 export const music = new MusicPlayer();
+spotify.onPlay = () => { if (music.playing) music.pause(); };
