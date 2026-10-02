@@ -1,7 +1,7 @@
 import { h, clear } from '../dom.js';
 import { icon } from '../icons.js';
 import { music } from '../audio/music.js';
-import { spotify, parseSpotify, spotifyUrl } from '../audio/spotify.js';
+import { spotify, parseSpotify, spotifyUrl, itemName } from '../audio/spotify.js';
 import { getPrefs, setPref } from '../prefs.js';
 
 let drawer = null;
@@ -56,28 +56,34 @@ function updateTime({ cur, dur }) {
 }
 
 function spotifySection() {
-  const link = spotify.link;
-  const input = h('input.text-in.sp-input', { placeholder: link ? 'Paste a different Spotify link' : 'Paste a Spotify link (playlist, album, song…)', 'aria-label': 'Spotify link' });
+  const link = spotify.link, list = spotify.list;
+  const input = h('input.text-in.sp-input', { placeholder: list.length ? 'Paste another Spotify link' : 'Paste a Spotify link (playlist, album, song…)', 'aria-label': 'Spotify link' });
   const err = h('p.note.sp-err');
   const go = () => {
     const l = parseSpotify(input.value);
     if (!l) { err.textContent = 'That is not a Spotify link. In Spotify use Share → Copy link, then paste it here.'; return; }
-    spotify.set(l); input.value = ''; err.textContent = '';
+    spotify.add(l); input.value = ''; err.textContent = '';
   };
   input.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  const row = (it, i) => h('div.sp-item', { class: it.id === spotify.current ? 'cur' : '' },
+    h('button.sp-pick', { title: 'Play ' + itemName(it, i), on: { click: () => spotify.select(it.id) } },
+      it.thumb ? h('img.sp-thumb', { src: it.thumb, alt: '', referrerpolicy: 'no-referrer' }) : h('span.sp-thumb.ph', '♫'),
+      h('span.sp-name', h('b', itemName(it, i)), h('small', ({ track: 'Song', album: 'Album', playlist: 'Playlist', artist: 'Artist', episode: 'Episode', show: 'Podcast' })[it.type]))),
+    h('button.trash', { title: 'Rename', 'aria-label': 'Rename ' + itemName(it, i), on: { click: () => { const n = prompt('Name for this Spotify link:', itemName(it, i)); if (n !== null) spotify.rename(it.id, n); } } }, '✎'),
+    h('button.trash', { title: 'Remove', 'aria-label': 'Remove ' + itemName(it, i), on: { click: () => spotify.remove(it.id) } }, icon('trash')));
   return h('div.sp-section',
     h('div.sp-title', h('span.sp-logo', '●'), h('span.sub', 'Spotify'),
-      link && h('a.sp-open', { href: spotifyUrl(link), target: '_blank', rel: 'noopener' }, 'Open in Spotify ↗'),
-      link && h('button.sp-remove', { title: 'Remove this Spotify link', on: { click: () => spotify.remove() } }, 'Remove')),
+      link && h('a.sp-open', { href: spotifyUrl(link), target: '_blank', rel: 'noopener' }, 'Open in Spotify ↗')),
     link && h('div.sp-slot'),
-    h('div.sp-row', input, h('button.btn', { on: { click: go } }, link ? 'Change' : 'Add')),
+    list.length > 0 && h('div.sp-list', list.map(row)),
+    h('div.sp-row', input, h('button.btn', { on: { click: go } }, 'Add')),
     err,
     link && h('details.sp-help', h('summary', 'Only part of each song plays ("Preview")?'),
       h('ol',
         h('li', 'Log in at ', h('a', { href: 'https://open.spotify.com', target: '_blank', rel: 'noopener' }, 'open.spotify.com'), ' in this same browser, then come back and reload this page.'),
         h('li', 'Still "Preview"? Your browser is blocking Spotify\'s login inside other websites (Incognito windows always do). In Chrome click the icon left of the web address → turn on ', h('b', 'Third-party cookies'), ' for this site, then reload.'),
         h('li', 'Or use ', h('b', 'Open in Spotify ↗'), ': the Spotify app always plays full songs.'))),
-    !link && h('p.note', 'Your link is saved to your account, so it is here every time, on every device you sign in.'));
+    !list.length && h('p.note', 'Add as many playlists, albums or songs as you like. They are saved to your account, so they are here every time, on every device you sign in.'));
 }
 
 function render() {

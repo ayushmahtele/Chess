@@ -707,3 +707,15 @@ main.full{padding-top:12px;padding-bottom:8px}
 .sp-help summary{font-weight:700;color:var(--text)}
 .sp-help ol{margin:8px 0 0;padding-left:18px;display:grid;gap:6px}
 .sp-help a{color:var(--gold)}
+/* Spotify list */
+.sp-list{display:grid;gap:4px;margin-top:10px;max-height:240px;overflow:auto}
+.sp-item{display:flex;align-items:center;gap:2px;border-radius:10px;border:1px solid transparent;padding-right:2px}
+.sp-item:hover{background:var(--surface-2)}
+.sp-item.cur{border-color:#1ed760;background:color-mix(in srgb,#1ed760 8%,transparent)}
+.sp-pick{flex:1;min-width:0;display:flex;align-items:center;gap:10px;border:0;background:transparent;text-align:left;padding:6px 8px}
+.sp-thumb{width:38px;height:38px;border-radius:6px;object-fit:cover;flex:none}
+.sp-thumb.ph{display:grid;place-items:center;background:var(--surface-2);color:#1ed760;font-size:1.1rem}
+.sp-name{min-width:0;display:grid}
+.sp-name b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.9rem}
+.sp-name small{color:var(--muted);font-size:.75rem}
+.sp-item .trash{width:30px;height:30px;font-size:.85rem}
