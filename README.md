@@ -78,6 +78,24 @@ Firebase's free plan allows about 50,000 database reads and 20,000 writes per da
 
 Moves are checked in the browser and protected by the database rules, which is fine for friends. A determined programmer could still send fake moves or edit their own rating. For a public competitive site, move validation and rating updates should move to the server with Firebase Cloud Functions (paid Blaze plan, still cheap at small scale).
 
+## Password reset by email code (one-time setup)
+
+"Forgot your password?" emails a 6-digit code to the Gmail linked to the account. This runs as two small
+server functions in the `api/` folder, which Vercel runs for free. They need three extra environment variables
+in **Vercel → Project → Settings → Environment Variables** (Production and Preview):
+
+| Name | Value |
+|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | Firebase console → ⚙ Project settings → **Service accounts** → **Generate new private key**. Open the downloaded `.json` file in Notepad, copy **all** of it and paste it as the value. Keep this file secret and never commit it. |
+| `GMAIL_USER` | The Gmail address the codes are sent **from**, e.g. `yourname@gmail.com` |
+| `GMAIL_APP_PASSWORD` | A 16-letter **app password** for that Gmail: Google Account → Security → turn on **2-Step Verification** → search **App passwords** → create one named "Chess Arena". |
+
+Then **Redeploy** (Deployments → ⋯ → Redeploy). Until these are set, "Forgot your password?" explains that email
+reset isn't set up yet, and players can still recover by signing in with Google.
+
+Safety: codes expire after 10 minutes, at most one code per minute and 5 per hour, 5 wrong tries locks the code,
+and a successful reset signs the account out on other devices. Gmail allows about 500 emails a day.
+
 ## How the rating works
 
 New accounts pick a level: Beginner 800, Intermediate 1200 or Pro 1600. Ratings use Glicko-2, the same family of system chess.com uses. Each account has a *rating deviation*: it starts high, so early results move your rating a lot (a new Pro who loses to a 1200 bot drops around 270 points), and it shrinks as you play, so later changes are smaller. A `?` after a rating means it is still provisional. Only rated games against the computer change your rating; aborted games never do.

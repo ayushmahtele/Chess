@@ -67,6 +67,8 @@ export async function signUpWithGmail(u, pw, knownFree = false) {
 export const addPassword = (u, pw) => need().addPassword(cleanUsername(u), pw);
 export const changePassword = pw => need().changePassword(pw);
 export const signOut = () => state.fb ? state.fb.signOut() : null;
+/** Back on the Welcome page during sign-up: delete the half-made account so the username and Gmail are free again. */
+export async function cancelSignup() { if (state.fb && state.user) await state.fb.deleteCurrentUser(); }
 
 /** uid that owns a username, or null */
 export async function usernameOwner(u) {

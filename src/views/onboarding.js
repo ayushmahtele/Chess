@@ -52,13 +52,14 @@ export async function onboardingView(main, _p, ctx) {
         profile = { name, level, rating: L.rating, rd: START_RD, vol: NEW_VOL, peak: L.rating, startRating: L.rating,
           games: 0, wins: 0, losses: 0, draws: 0, createdAt: Date.now(), lastPlayed: null, ratingHistory: [{ t: Date.now(), r: L.rating }] };
       }
-      if (user) {
-        await createCloudProfile({ ...profile, username: userIn.value });
+      const nowUser = session().user;                 // read at click time (the page may have been drawn a moment before sign-up finished)
+      if (nowUser) {
+        await createCloudProfile({ ...profile, username: nowUser.passwordUsername || userIn.value });
         if (useGuest && hasGuest) {
-          for (const g of guest.games) { const { id, ...rest } = g; await store.addGame(rest); }
+          for (const g of guest.games) { const { id, ...rest } = g; await session().store.addGame(rest); }
           await localStore.deleteAccountData();
         }
-      } else await store.saveProfile(profile);
+      } else await session().store.saveProfile(profile);
       await ctx.refreshProfile(); ctx.go('/'); toast(`Welcome, ${name}!`);
     } catch (e) { toast(friendlyError(e), 'error'); btn.disabled = false; }
   }

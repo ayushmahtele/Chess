@@ -8,12 +8,12 @@ for (const proto of [Element.prototype, DocumentFragment.prototype]) {
     proto[fn] = function (...nodes) { return orig.apply(this, nodes.filter(n => n !== false && n != null)); };
   }
 }
-import { h, $, clear, toast } from './dom.js';
+import { h, $, clear, toast, confirmBox } from './dom.js';
 import { icon } from './icons.js';
 import { APP_NAME } from './config.js';
 import { applyTheme, getPrefs, onPrefs } from './prefs.js';
 import { setSfxVolume } from './audio/sfx.js';
-import { initSession, onSession, session, cloudEnabled, friendlyError } from './store/index.js';
+import { initSession, onSession, session, cloudEnabled, friendlyError, cancelSignup } from './store/index.js';
 import { isProvisional } from './rating.js';
 import { avatar } from './avatar.js';
 import { spotify } from './audio/spotify.js';
@@ -57,7 +57,17 @@ const tabbar = h('nav.tabbar', { 'aria-label': 'Main' }, navLinks.map(([k, href,
 const main = h('main', { id: 'main' });
 // "Back" button under the logo: returns to the previous page inside the app, or to Play.
 const visited = [];
-const backBtn = h('button.backbtn', { 'aria-label': 'Go back', title: 'Back', on: { click: () => {
+const backBtn = h('button.backbtn', { 'aria-label': 'Go back', title: 'Back', on: { click: async () => {
+  const path = location.hash.replace(/^#/, '') || '/';
+  if (path === '/welcome') {
+    // Welcome = account not finished yet. Back goes to the login page; during sign-up it cancels the new account.
+    if (session().user && !profile) {
+      if (!(await confirmBox('Cancel creating your account?', 'Nothing has been saved yet. Your username and Gmail will be free to use again.', 'Cancel sign-up', true))) return;
+      try { await cancelSignup(); } catch (e) { console.warn(e); }
+    }
+    location.hash = '/login'; return;
+  }
+  if (path === '/login' && !profile) { location.hash = '/welcome'; return; }
   if (visited.length > 1) history.back(); else location.hash = '/';
 } } }, icon('back'), h('span', 'Back'));
 app.append(
@@ -102,6 +112,7 @@ async function route() {
   catch (e) { console.error(e); toast('Could not load your profile: ' + e.message, 'error'); profile = null; }
   if (my !== routing) return;
   renderUser();
+  document.body.classList.toggle('no-profile', !profile);
   if (!profile && !r.noProfile) { location.hash = '/welcome'; return; }
   clear(main);
   main.style.maxWidth = r.full ? '1500px' : '';

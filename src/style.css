@@ -724,3 +724,16 @@ main.full{padding-top:12px;padding-bottom:8px}
 .forgot p{margin:8px 0}
 .forgot .btn{width:100%}
 .signup-note{margin:0}
+/* account not finished (Welcome / sign-in without a profile): no app navigation yet */
+body.no-profile .nav,body.no-profile .tabbar,body.no-profile .top-right a.btn[href="#/login"]{display:none}
+body.no-profile .logo{pointer-events:none}
+body.no-profile main{padding-bottom:40px}
+/* forgot password */
+.forgot{margin-top:4px}
+.forgot summary{cursor:pointer;font-weight:700}
+.forgot-body{display:grid;gap:10px;margin:10px 0 4px}
+.forgot-body p{margin:0;color:var(--muted);font-size:.9rem}
+.forgot-body .text-in{max-width:none}
+.forgot-body .otp{letter-spacing:.5em;font-size:1.3rem;font-weight:800;text-align:center;font-variant-numeric:tabular-nums}
+.linkish{border:0;background:transparent;color:var(--gold);font-weight:700;padding:4px 0;justify-self:start;cursor:pointer}
+.forgot .btn.google{width:100%}

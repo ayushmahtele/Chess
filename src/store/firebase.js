@@ -114,6 +114,8 @@ export function createFirebase(config, makeFakeDb) {
         await updatePassword(u, newPw);
       }
     },
+    /** Cancel an unfinished sign-up: remove the sign-in account (nothing else was saved yet). */
+    async deleteCurrentUser() { const u = auth.currentUser; if (!u) return; try { await deleteUser(u); } catch { await signOut(auth); } },
     signOut: () => signOut(auth),
   };
 }

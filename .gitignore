@@ -3,3 +3,5 @@ dist
 .env.local
 .env
 .DS_Store
+.test-server.mjs
+.env.emu
