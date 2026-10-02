@@ -5,7 +5,7 @@ import {
   GoogleAuthProvider, EmailAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, linkWithPopup, linkWithCredential,
   updatePassword, reauthenticateWithCredential, reauthenticateWithPopup, signOut, onAuthStateChanged,
-  signInWithCredential,
+  signInWithCredential, getAdditionalUserInfo, deleteUser,
 } from 'firebase/auth';
 import { createFirestoreDb } from './db-firestore.js';
 
@@ -26,7 +26,8 @@ const FRIENDLY = {
   'auth/cancelled-popup-request': 'Google sign-in was closed before finishing.',
   'auth/credential-already-in-use': 'That Google account already has its own Chess Arena account. Sign out and sign in with Google to use it, or link a different Google account.',
   'auth/provider-already-linked': 'A Google account is already linked.',
-  'auth/requires-recent-login': 'For your security, sign out and sign in again, then retry.',
+  'auth/requires-recent-login': 'For your security, sign out and sign in again, then retry. (Linking your Google account avoids this.)',
+  'auth/popup-blocked': 'Your browser blocked the Google window. Allow pop-ups for this site and try again.',
   'auth/unauthorized-domain': 'This website address is not authorised in Firebase yet (Authentication → Settings → Authorized domains).',
   'auth/operation-not-allowed': 'This sign-in method is not enabled in the Firebase console.',
   'auth/network-request-failed': 'Network error. Check your internet connection.',
@@ -80,13 +81,38 @@ export function createFirebase(config, makeFakeDb) {
     },
     signInUsername: (u, pw) => signInWithEmailAndPassword(auth, usernameEmail(config, u), pw),
     signUpUsername: (u, pw) => createUserWithEmailAndPassword(auth, usernameEmail(config, u), pw),
+    /** New account = the Gmail the player picks + a username and password linked to it. One Gmail, one account. */
+    async signUpWithGmail(u, pw, hasProfile) {
+      const res = EMU && window.__emuGoogleEmail
+        ? await signInWithCredential(auth, GoogleAuthProvider.credential(JSON.stringify({ sub: 'g-' + window.__emuGoogleEmail, email: window.__emuGoogleEmail, email_verified: true, name: 'Test User' })))
+        : await signInWithPopup(auth, google());
+      const user = res.user, d = describe(user);
+      const isNew = getAdditionalUserInfo(res)?.isNewUser;
+      if (d.passwordUsername || (!isNew && await hasProfile(user.uid))) {
+        await signOut(auth);
+        throw Object.assign(new Error(d.passwordUsername
+          ? `${d.email || 'This Gmail'} already belongs to @${d.passwordUsername}. Each Gmail can have only one account. Use "Continue with Google" on the Sign in tab.`
+          : `${d.email || 'This Gmail'} already has a Chess Arena account. Each Gmail can have only one account. Use "Continue with Google" on the Sign in tab.`), { code: 'gmail-used' });
+      }
+      try { await linkWithCredential(user, EmailAuthProvider.credential(usernameEmail(config, u), pw)); }
+      catch (e) {
+        try { await deleteUser(user); } catch { await signOut(auth); }        // never leave a half-made account behind
+        if (e.code === 'auth/email-already-in-use' || e.code === 'auth/credential-already-in-use') throw Object.assign(new Error('That username was just taken. Please choose another.'), { code: e.code });
+        throw e;
+      }
+      await this.refresh();
+    },
     async linkGoogle() { await linkWithPopup(auth.currentUser, google()); await this.refresh(); },
     async addPassword(u, pw) { await linkWithCredential(auth.currentUser, EmailAuthProvider.credential(usernameEmail(config, u), pw)); await this.refresh(); },
-    async changePassword(currentPw, newPw) {
-      const u = auth.currentUser, d = describe(u);
-      if (currentPw && d.passwordUsername) await reauthenticateWithCredential(u, EmailAuthProvider.credential(usernameEmail(config, d.passwordUsername), currentPw));
-      else if (d.providers.includes('google.com')) await reauthenticateWithPopup(u, google());
-      await updatePassword(u, newPw);
+    /** No old password needed. If Firebase wants a fresh sign-in, confirm with the linked Google account. */
+    async changePassword(newPw) {
+      const u = auth.currentUser;
+      try { await updatePassword(u, newPw); }
+      catch (e) {
+        if (e.code !== 'auth/requires-recent-login' || !u.providerData.some(p => p.providerId === 'google.com')) throw e;
+        await reauthenticateWithPopup(u, google());
+        await updatePassword(u, newPw);
+      }
     },
     signOut: () => signOut(auth),
   };

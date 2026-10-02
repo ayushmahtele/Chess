@@ -56,8 +56,16 @@ export async function signUpUsername(u, pw) {
   return need().signUpUsername(u, pw);
 }
 export const linkGoogle = () => need().linkGoogle();
+/** Create an account: Gmail (picked in Google's window) + username + password, all on one account. */
+export async function signUpWithGmail(u, pw, knownFree = false) {
+  u = cleanUsername(u);
+  if (!USERNAME_RE.test(u)) throw new Error('Usernames are 3–20 characters: letters, numbers and _ only.');
+  if (!pw || pw.length < 6) throw new Error('Password must be at least 6 characters.');
+  if (!knownFree && await usernameOwner(u)) throw new Error('That username is already taken.');
+  return need().signUpWithGmail(u, pw, async uid => !!(await state.db.get(`users/${uid}`)));
+}
 export const addPassword = (u, pw) => need().addPassword(cleanUsername(u), pw);
-export const changePassword = (cur, pw) => need().changePassword(cur, pw);
+export const changePassword = pw => need().changePassword(pw);
 export const signOut = () => state.fb ? state.fb.signOut() : null;
 
 /** uid that owns a username, or null */

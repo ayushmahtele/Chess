@@ -59,7 +59,7 @@ export async function profileView(main, _p, ctx) {
   function methodsCard() {
     const hasG = user.providers.includes('google.com'), hasPw = user.providers.includes('password');
     const pwIn = h('input.text-in', { type: 'password', placeholder: 'New password (6+ characters)', autocomplete: 'new-password', 'aria-label': 'New password' });
-    const curIn = h('input.text-in', { type: 'password', placeholder: 'Current password', autocomplete: 'current-password', 'aria-label': 'Current password' });
+    const pw2In = h('input.text-in', { type: 'password', placeholder: 'Repeat new password', autocomplete: 'new-password', 'aria-label': 'Repeat new password' });
     const unIn = h('input.text-in', { placeholder: 'username', autocapitalize: 'none', 'aria-label': 'Username' });
     const run = fn => async () => { try { await fn(); } catch (e) { toast(friendlyError(e), 'error'); } };
     return h('div.card', h('h2', 'Sign-in methods'),
@@ -74,8 +74,15 @@ export async function profileView(main, _p, ctx) {
           h('button.btn', { on: { click: run(async () => { await claimUsername(unIn.value); await ctx.refreshProfile(); toast('Username saved'); ctx.go('/profile'); }) } }, 'Save username')),
         P.username && !hasPw && h('div', { style: { display: 'flex', gap: '8px' } }, pwIn,
           h('button.btn', { on: { click: run(async () => { if (pwIn.value.length < 6) throw new Error('Password must be at least 6 characters.'); await addPassword(P.username, pwIn.value); toast('Password added'); ctx.go('/profile'); }) } }, 'Add password')),
-        hasPw && h('details', h('summary', 'Change password'), h('div', { style: { display: 'grid', gap: '8px', marginTop: '8px' } }, curIn, pwIn,
-          h('button.btn', { on: { click: run(async () => { if (pwIn.value.length < 6) throw new Error('Password must be at least 6 characters.'); await changePassword(curIn.value, pwIn.value); curIn.value = pwIn.value = ''; toast('Password changed'); }) } }, 'Change password')))));
+        hasPw && h('details', h('summary', 'Change password'), h('div', { style: { display: 'grid', gap: '8px', marginTop: '8px' } },
+          h('p.muted', { style: { margin: 0, fontSize: '.85rem' } }, hasG ? 'No old password needed. If asked, confirm with your Google account.' : 'No old password needed. Tip: link Google above so you can always recover your account.'),
+          pwIn, pw2In,
+          h('button.btn', { on: { click: run(async () => {
+            if (pwIn.value.length < 6) throw new Error('Password must be at least 6 characters.');
+            if (pwIn.value !== pw2In.value) throw new Error('The two passwords are different.');
+            await changePassword(pwIn.value); pwIn.value = pw2In.value = ''; toast('Password changed');
+          }) } }, 'Change password'))),
+        !hasG && h('p.muted', { style: { fontSize: '.85rem', margin: '4px 0 0' } }, 'Without a linked Google account, a forgotten password can\'t be recovered. Link Google to be safe.')));
   }
 
   async function resetAll() {

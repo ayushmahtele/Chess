@@ -719,3 +719,8 @@ main.full{padding-top:12px;padding-bottom:8px}
 .sp-name b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.9rem}
 .sp-name small{color:var(--muted);font-size:.75rem}
 .sp-item .trash{width:30px;height:30px;font-size:.85rem}
+.forgot{font-size:.85rem;color:var(--muted)}
+.forgot summary{cursor:pointer;color:var(--text);font-weight:600}
+.forgot p{margin:8px 0}
+.forgot .btn{width:100%}
+.signup-note{margin:0}
