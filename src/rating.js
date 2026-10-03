@@ -133,7 +133,7 @@ export function countResult(entry, outcome, rated = false) {
   if (rated) add(entry.rated = entry.rated || {}); // only the games that changed this rating
   return entry;
 }
-export const plural = (n, word) => `${n} ${n === 1 ? word : word + 's'}`;
+export const plural = (n, word) => `${n} ${n <= 1 ? word : word + 's'}`;   // 0 game, 1 game, 2 games
 
 /**
  * What one game would do to a rating, shown before the game like chess.com: { win: +12, draw: 0, loss: -12 }.
