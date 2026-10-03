@@ -2,7 +2,7 @@
 // One document per game in the "onlineGames" collection.
 import { Chess } from 'chess.js';
 import { session, usernameOwner, cleanUsername } from './store/index.js';
-import { ratingsOf, rateGame, categoryOfTc, MAX_ONLINE_CHANGE } from './rating.js';
+import { ratingsOf, rateGame, categoryOfTc, countResult, MAX_ONLINE_CHANGE } from './rating.js';
 import { avatarSrc } from './avatar.js';
 
 export const COLL = 'onlineGames';
@@ -219,10 +219,7 @@ export async function saveFinished(g) {
       o = rateGame(o, g.p[opp].rating, g.p[opp].rd || 200, score, MAX_ONLINE_CHANGE);
       ratingAfter = o.rating;
     }
-    if (outcome !== 'aborted') {
-      o.games = (o.games || 0) + 1;
-      if (outcome === 'win') o.wins = (o.wins || 0) + 1; else if (outcome === 'loss') o.losses = (o.losses || 0) + 1; else o.draws = (o.draws || 0) + 1;
-    }
+    countResult(o, outcome, rated);
     ratings[cat] = o; profile.ratings = ratings;
     const chess = replay(g.moves);
     const label = id => `${g.p[id].name} (@${g.p[id].username})`;

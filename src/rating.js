@@ -123,10 +123,14 @@ export function rateGame(entry, oppRating, oppRd, score, maxChange = Infinity) {
 }
 
 /** Count a finished game in a category (kept on the profile, so deleting History doesn't change it). */
-export function countResult(entry, outcome) {
+export function countResult(entry, outcome, rated = false) {
   if (outcome === 'aborted') return entry;
-  entry.games = (entry.games || 0) + 1;
-  if (outcome === 'win') entry.wins = (entry.wins || 0) + 1; else if (outcome === 'loss') entry.losses = (entry.losses || 0) + 1; else entry.draws = (entry.draws || 0) + 1;
+  const add = o => {
+    o.games = (o.games || 0) + 1;
+    if (outcome === 'win') o.wins = (o.wins || 0) + 1; else if (outcome === 'loss') o.losses = (o.losses || 0) + 1; else o.draws = (o.draws || 0) + 1;
+  };
+  add(entry);                                    // every game of this type
+  if (rated) add(entry.rated = entry.rated || {}); // only the games that changed this rating
   return entry;
 }
 export const plural = (n, word) => `${n} ${n === 1 ? word : word + 's'}`;

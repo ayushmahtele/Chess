@@ -3,7 +3,7 @@ import { icon } from '../icons.js';
 import { session, cloudEnabled, signOut, linkGoogle, addPassword, changePassword, claimUsername, changeUsername, usernameOwner, cleanUsername, USERNAME_RE, friendlyError } from '../store/index.js';
 import { avatar, avatarSrc } from '../avatar.js';
 import { openPhotoEditor } from './photo-editor.js';
-import { LEVELS, isProvisional, ratingsOf, overallOf, categoryOfTc, CATEGORIES, ONLINE_CATS, catInfo, plural } from '../rating.js';
+import { LEVELS, isProvisional, ratingsOf, overallOf, categoryOfTc, CATEGORIES, ONLINE_CATS, catInfo, plural, countResult } from '../rating.js';
 
 export async function profileView(main, _p, ctx) {
   const P = ctx.profile, { user, store } = session();
@@ -15,9 +15,14 @@ export async function profileView(main, _p, ctx) {
     const sum = k => cats.reduce((t, c) => t + (R[c][k] || 0), 0);
     return { n: sum('games'), w: sum('wins'), d: sum('draws'), l: sum('losses') };
   }
+  /** Only the rated games of one type: the games that actually moved that rating. */
+  function ratedFor(cat) {
+    const r = R[cat].rated || {};
+    return { n: r.games || 0, w: r.wins || 0, d: r.draws || 0, l: r.losses || 0 };
+  }
   // One-time: older profiles had no counters, so count them once from the games still in History.
   async function migrateCounters(gs) {
-    if (P.statsV2) return;
+    if (P.statsV2) return migrateRated(gs);
     for (const c of CATEGORIES) Object.assign(R[c.id], { games: 0, wins: 0, draws: 0, losses: 0 });
     for (const g of gs) {
       if (g.outcome === 'aborted' || g.mode === 'local') continue;
@@ -25,6 +30,18 @@ export async function profileView(main, _p, ctx) {
       if (R[c]) { R[c].games++; if (g.outcome === 'win') R[c].wins++; else if (g.outcome === 'loss') R[c].losses++; else if (g.outcome === 'draw') R[c].draws++; }
     }
     P.ratings = R; P.statsV2 = true;
+    return migrateRated(gs);
+  }
+  // One-time: split the counters into rated and casual, using the games still in History.
+  async function migrateRated(gs) {
+    if (P.statsV3) return;
+    for (const c of CATEGORIES) R[c.id].rated = { games: 0, wins: 0, draws: 0, losses: 0 };
+    for (const g of gs) {
+      if (!g.rated || g.outcome === 'aborted' || g.mode === 'local') continue;
+      const c = g.mode === 'bot' ? 'computer' : (g.category || categoryOfTc(g.timeControl));
+      if (R[c]) countResult(R[c].rated, g.outcome);
+    }
+    P.ratings = R; P.statsV3 = true;
     try { await store.saveProfile(P); } catch (e) { console.warn(e); }
   }
   const pctOf = (x, t) => t ? x / t * 100 : 0;
@@ -124,13 +141,15 @@ export async function profileView(main, _p, ctx) {
           h('b', R[c.id].rating, isProvisional(R[c.id].rd) ? h('span.q', '?') : ''), h('small', games ? plural(st.n, 'game') : '…')); })),
         h('p.muted', { style: { margin: '12px 0 0', fontSize: '.85rem' } }, 'Each type of game has its own rating. They all started at your level and change only when you play rated games of that type. Tap one for its details.'));
     } else {
-      const e = R[sel], st = statsFor(sel), prov = isProvisional(e.rd);
+      const e = R[sel], all = statsFor(sel), st = ratedFor(sel), prov = isProvisional(e.rd), casual = Math.max(0, all.n - st.n);
+      const label = sel === 'computer' ? 'vs Computer' : catInfo(sel).label;
       body.push(
         h('div.rating-big', h('span.n', e.rating), prov && h('span.q', '?'), h('span.muted', prov ? 'provisional' : '')),
-        h('div.stats-row', h('div.stat', h('b', e.peak || e.rating), h('span', 'Peak')), h('div.stat', h('b', games ? st.n : '…'), h('span', 'Games')),
+        h('div.stats-row', h('div.stat', h('b', e.peak || e.rating), h('span', 'Peak')), h('div.stat', h('b', games ? st.n : '…'), h('span', 'Rated games')),
           h('div.stat', h('b', games ? st.w : '…'), h('span', 'Won')), h('div.stat', h('b', games ? st.l : '…'), h('span', 'Lost'))),
         ...wdl(st),
-        h('div', { style: { marginTop: '14px' } }, graph(e.history || [])),
+        games && casual > 0 && h('small.muted', { style: { display: 'block', marginTop: '4px' } }, `Also ${plural(casual, 'casual game')}: ${casual === 1 ? 'it doesn\'t' : 'they don\'t'} change this rating.`),
+        h('div', { style: { marginTop: '14px' } }, graph(e.history || [], label, st.n)),
         h('p.muted', { style: { margin: '10px 0 0', fontSize: '.85rem' } }, sel === 'computer' ? 'Changes only with rated games against the computer.'
           : `Changes only with rated online ${catInfo(sel).label === 'No clock' ? 'games without a clock' : catInfo(sel).label + ' games'} (${({ bullet: '1 min, 2 | 1', blitz: '3 min, 3 | 2, 5 min', rapid: '10 min, 15 | 10, 30 min', noclock: 'no clock' })[sel]}).`));
     }
@@ -141,7 +160,7 @@ export async function profileView(main, _p, ctx) {
   }
   ratingsCard_render();
   const ready = gs => { games = gs; renderOverallStats(); ratingsCard_render(); };
-  if (P.statsV2) ready([]);
+  if (P.statsV2 && P.statsV3) ready([]);
   else store.listGames().then(async gs => { await migrateCounters(gs); ready(gs); }).catch(() => ready([]));
 
   function methodsCard() {
@@ -180,13 +199,16 @@ export async function profileView(main, _p, ctx) {
   }
 }
 
-function graph(points) {
+function graph(points, label = 'vs Computer', ratedGames = 0) {
   const W = 640, H = 220, pad = { l: 44, r: 12, t: 12, b: 26 };
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.classList.add('graph'); svg.setAttribute('role', 'img');
+  // The graph needs at least one rating change: the starting point plus one rated game of this type.
   if (points.length < 2) {
-    const wrap = h('div.empty', 'Play rated games against the computer to see your rating graph.');
-    return wrap;
+    const what = label === 'vs Computer' ? 'rated game against the computer' : `rated ${label} game online`;
+    return h('div.empty', h('b', 'No graph yet'), h('br'), ratedGames
+      ? `Your rated ${label} games so far were played before each game type got its own rating. The graph starts with your next ${what}.`
+      : `It appears after your first ${what}.`);
   }
   const rs = points.map(p => p.r), lo = Math.floor((Math.min(...rs) - 30) / 50) * 50, hi = Math.ceil((Math.max(...rs) + 30) / 50) * 50;
   const x = i => pad.l + i * (W - pad.l - pad.r) / (points.length - 1);

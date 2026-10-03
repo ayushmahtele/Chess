@@ -240,7 +240,7 @@ export class Game {
       if (r.outcome === 'win') profile.wins = (profile.wins || 0) + 1;
       else if (r.outcome === 'loss') profile.losses = (profile.losses || 0) + 1;
       else if (r.outcome === 'draw') profile.draws = (profile.draws || 0) + 1;
-      if (this.isBot && r.outcome !== 'aborted') { profile.lastPlayed = Date.now(); const rs = ratingsOf(profile); countResult(rs.computer, r.outcome); profile.ratings = rs; }
+      if (this.isBot && r.outcome !== 'aborted') { profile.lastPlayed = Date.now(); const rs = ratingsOf(profile); countResult(rs.computer, r.outcome, !!rated); profile.ratings = rs; }
       await store.saveProfile(profile);
     }
     const record = {
