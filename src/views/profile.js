@@ -52,7 +52,7 @@ export async function profileView(main, _p, ctx) {
   function renderOverallStats() {
     const st = statsFor('overall');
     clear(overallStats).append(
-      h('div.stats-row', h('div.stat', h('b', games ? st.n : '…'), h('span', 'Games')), h('div.stat', h('b', games ? st.w : '…'), h('span', 'Won')),
+      h('div.stats-row', h('div.stat', h('b', games ? st.n : '…'), h('span', st.n === 1 ? 'Game' : 'Games')), h('div.stat', h('b', games ? st.w : '…'), h('span', 'Won')),
         h('div.stat', h('b', games ? st.d : '…'), h('span', 'Drawn')), h('div.stat', h('b', games ? st.l : '…'), h('span', 'Lost'))),
       ...wdl(st));
   }
@@ -145,7 +145,7 @@ export async function profileView(main, _p, ctx) {
       const label = sel === 'computer' ? 'vs Computer' : catInfo(sel).label;
       body.push(
         h('div.rating-big', h('span.n', e.rating), prov && h('span.q', '?'), h('span.muted', prov ? 'provisional' : '')),
-        h('div.stats-row', h('div.stat', h('b', e.peak || e.rating), h('span', 'Peak')), h('div.stat', h('b', games ? st.n : '…'), h('span', 'Rated games')),
+        h('div.stats-row', h('div.stat', h('b', e.peak || e.rating), h('span', 'Peak')), h('div.stat', h('b', games ? st.n : '…'), h('span', st.n === 1 ? 'Rated game' : 'Rated games')),
           h('div.stat', h('b', games ? st.w : '…'), h('span', 'Won')), h('div.stat', h('b', games ? st.l : '…'), h('span', 'Lost'))),
         ...wdl(st),
         games && casual > 0 && h('small.muted', { style: { display: 'block', marginTop: '4px' } }, `Also ${plural(casual, 'casual game')}: ${casual === 1 ? 'it doesn\'t' : 'they don\'t'} change this rating.`),
@@ -207,7 +207,7 @@ function graph(points, label = 'vs Computer', ratedGames = 0) {
   if (points.length < 2) {
     const what = label === 'vs Computer' ? 'rated game against the computer' : `rated ${label} game online`;
     return h('div.empty', h('b', 'No graph yet'), h('br'), ratedGames
-      ? `Your rated ${label} games so far were played before each game type got its own rating. The graph starts with your next ${what}.`
+      ? `${ratedGames === 1 ? `Your rated ${label} game so far was` : `Your rated ${label} games so far were`} played before each game type got its own rating. The graph starts with your next ${what}.`
       : `It appears after your first ${what}.`);
   }
   const rs = points.map(p => p.r), lo = Math.floor((Math.min(...rs) - 30) / 50) * 50, hi = Math.ceil((Math.max(...rs) + 30) / 50) * 50;

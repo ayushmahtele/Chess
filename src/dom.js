@@ -34,14 +34,16 @@ export function toast(msg, kind = '') {
   setTimeout(() => t.remove(), 3000);
 }
 
-export function modal({ title, body, actions = [], dismissable = true, className = '' }) {
+/** exit: optional { title, value } adds a ✕ in the top-right corner that resolves with that value. */
+export function modal({ title, body, actions = [], dismissable = true, className = '', exit = null }) {
   return new Promise(resolve => {
     const root = document.getElementById('modal-root');
     let done = false;
     const close = v => { if (done) return; done = true; wrap.remove(); document.removeEventListener('keydown', onKey); resolve(v); };
     const onKey = e => { if (e.key === 'Escape' && dismissable) close(null); };
     const wrap = h('div.modal-wrap', { on: { click: e => { if (e.target === wrap && dismissable) close(null); } } },
-      h('div.modal', { role: 'dialog', 'aria-modal': 'true', 'aria-label': title, class: className },
+      h('div.modal', { role: 'dialog', 'aria-modal': 'true', 'aria-label': title, class: className + (exit ? ' has-exit' : '') },
+        exit && h('button.modal-x', { type: 'button', title: exit.title, 'aria-label': exit.title, on: { click: () => close(exit.value) } }, '✕'),
         title && h('h2', title),
         body,
         actions.length ? h('div.modal-actions', actions.map(a =>

@@ -917,3 +917,9 @@ div.level:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .rate-preview .pv{display:inline-flex;gap:4px;color:var(--muted)}
 .rate-preview .pv b{font-variant-numeric:tabular-nums}
 .rate-preview .win b{color:var(--win)} .rate-preview .loss b{color:var(--red)} .rate-preview .draw b{color:var(--text)}
+
+/* ✕ in the corner of the game-over box: back to where the game was started */
+.modal{position:relative}
+.modal-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:1rem;line-height:1;display:grid;place-items:center;cursor:pointer}
+.modal-x:hover{color:var(--text);border-color:var(--muted)}
+.modal.has-exit h2{padding:0 34px}

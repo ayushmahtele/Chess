@@ -241,7 +241,7 @@ export async function gameView(main, _p, ctx) {
     const r = G.result;
     const d = describeResult(r, G);
     const ratingEl = h('div');
-    const body = h('div', h('p', `${d.sub} by ${r.reason}.`), ratingEl);
+    const body = h('div', h('p', r.outcome === 'aborted' ? 'Nobody won: the game ended before both players moved.' : `${d.sub} by ${r.reason}.`), ratingEl);
     const fillRating = () => {
       clear(ratingEl);
       if (r.saveError) ratingEl.append(h('p', { style: { color: 'var(--red)' } }, 'Could not save this game: ' + r.saveError));
@@ -249,15 +249,16 @@ export async function gameView(main, _p, ctx) {
       else if (r.ratingAfter != null) {
         const delta = r.ratingAfter - r.ratingBefore;
         ratingEl.append(h('div.big-r', r.ratingAfter, ' ', h('span.delta', { class: delta >= 0 ? 'up' : 'down', style: { fontSize: '1.3rem' } }, (delta >= 0 ? '+' : '') + delta)), h('p.muted', 'New rating'));
-      } else ratingEl.append(h('p.muted', r.outcome === 'aborted' ? 'Saved to your history. Rating unchanged.' : 'Saved to your history.'));
+      } else ratingEl.append(h('p.muted', r.outcome === 'aborted' ? 'Saved to your history. Rating unchanged.'
+        : G.isBot && !G.cfg.rated ? 'Casual game: rating unchanged. Saved to your history.' : 'Saved to your history.'));
     };
     fillRating();
     const off = G.on(ev => { if (ev.type === 'saved') { fillRating(); ctx.refreshProfile(); } });
-    const choice = await modal({ title: d.title, body, className: 'over-modal',
+    const choice = await modal({ title: d.title, body, className: 'over-modal', exit: { title: 'Back to Play', value: 'exit' },
       actions: [{ label: 'Review', value: 'review' }, { label: 'New game', value: 'new' }, { label: 'Rematch', value: 'rematch', kind: 'primary' }] });
     off();
     if (choice === 'rematch') rematch();
-    else if (choice === 'new') { game = null; ctx.go('/'); }
+    else if (choice === 'new' || choice === 'exit') { game = null; ctx.go('/'); }
     else if (choice === 'review') {
       if (r.saved && r.id) { game = null; ctx.go('/review/' + r.id); }
       else setView(0);

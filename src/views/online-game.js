@@ -249,11 +249,13 @@ export async function onlineGameView(main, [id], ctx) {
     shownOver = true;
     const o = outcomeFor();
     if (o === 'win') sfx.win(); else if (o === 'loss') sfx.lose(); else sfx.draw();
-    let rating = h('p.muted', 'Saved to your history.');
+    let rating = h('p.muted', o === 'aborted' ? 'Saved to your history. Rating unchanged.' : g.rated ? 'Saved to your history.' : 'Casual game: rating unchanged. Saved to your history.');
     if (saved?.ratingAfter != null) { const dlt = saved.ratingAfter - saved.ratingBefore; rating = h('div', h('div.big-r', saved.ratingAfter, ' ', h('span.delta', { class: dlt >= 0 ? 'up' : 'down', style: { fontSize: '1.3rem' } }, (dlt >= 0 ? '+' : '') + dlt)), h('p.muted', 'New online rating')); }
-    const choice = await modal({ title: TITLES[o], className: 'over-modal', body: h('div', h('p', `By ${g.reason}.`), rating),
+    const choice = await modal({ title: TITLES[o], className: 'over-modal', body: h('div', h('p', o === 'aborted' ? `Nobody won: ${g.reason === 'aborted' ? 'the game was aborted' : g.reason}.` : `By ${g.reason}.`), rating),
+      exit: { title: 'Back to Online', value: 'exit' },
       actions: [{ label: 'Review', value: 'review' }, { label: 'Close', value: null }, { label: 'Rematch', value: 'rematch', kind: 'primary' }] });
     if (!alive) return;
+    if (choice === 'exit') { ctx.go('/online'); return; }
     if (choice === 'review' && saved) ctx.go('/review/' + id);
     if (choice === 'rematch') { try { const nid = g.rematch?.id && g.rematch.by !== user.uid ? (await O.joinGame(g.rematch.id, P), g.rematch.id) : await O.offerRematch(id, P); ctx.go('/play/' + nid); } catch (e) { toast(friendlyError(e), 'error'); } }
   }
