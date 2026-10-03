@@ -94,6 +94,6 @@ export async function homeView(main, _p, ctx) {
   }).catch(e => { recent.lastChild.textContent = 'Could not load games: ' + e.message; });
 
   main.append(h('div.home',
-    h('section.home-hero', h('div.hero-row', h('img.hero-king', { src: '/pieces3d/wood/wK.webp', alt: '' }), h('h1', `Ready to play, ${P.name}?`)), h('p', 'Challenge the computer at your level or play a friend on this device.'), h('div.card', form)),
+    h('section.home-hero', h('div.hero-row', h('img.hero-king', { src: '/pieces3d/wood/wK.webp', alt: '' }), h('h1', `Ready to play, ${P.name}?`)), h('p', 'Challenge the computer at your level, play a friend on this device, or take on players online.'), h('div.card', form)),
     side));
 }

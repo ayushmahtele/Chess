@@ -3,18 +3,29 @@ import { icon } from '../icons.js';
 import { session, cloudEnabled, signOut, linkGoogle, addPassword, changePassword, claimUsername, friendlyError } from '../store/index.js';
 import { avatar, avatarSrc } from '../avatar.js';
 import { openPhotoEditor } from './photo-editor.js';
-import { LEVELS, isProvisional, ratingsOf, overallOf, categoryOfTc, CATEGORIES, ONLINE_CATS, catInfo } from '../rating.js';
+import { LEVELS, isProvisional, ratingsOf, overallOf, categoryOfTc, CATEGORIES, ONLINE_CATS, catInfo, plural } from '../rating.js';
 
 export async function profileView(main, _p, ctx) {
   const P = ctx.profile, { user, store } = session();
   const R = ratingsOf(P), O = overallOf(P);
   let games = null, sel = 'overall';
-  // Wins / draws / losses come from the saved games, so they always match History.
+  // Games / wins / draws / losses are counters kept on the profile, so deleting games from History doesn't change them.
   function statsFor(cat) {
-    const list = (games || []).filter(g => g.outcome !== 'aborted' && (cat === 'overall' ? g.mode === 'online'
-      : cat === 'computer' ? g.mode === 'bot' : g.mode === 'online' && categoryOfTc(g.timeControl) === cat));
-    const w = list.filter(g => g.outcome === 'win').length, d = list.filter(g => g.outcome === 'draw').length, l = list.filter(g => g.outcome === 'loss').length;
-    return { n: list.length, w, d, l };
+    const cats = cat === 'overall' ? ONLINE_CATS : [cat];
+    const sum = k => cats.reduce((t, c) => t + (R[c][k] || 0), 0);
+    return { n: sum('games'), w: sum('wins'), d: sum('draws'), l: sum('losses') };
+  }
+  // One-time: older profiles had no counters, so count them once from the games still in History.
+  async function migrateCounters(gs) {
+    if (P.statsV2) return;
+    for (const c of CATEGORIES) Object.assign(R[c.id], { games: 0, wins: 0, draws: 0, losses: 0 });
+    for (const g of gs) {
+      if (g.outcome === 'aborted' || g.mode === 'local') continue;
+      const c = g.mode === 'bot' ? 'computer' : categoryOfTc(g.timeControl);
+      if (R[c]) { R[c].games++; if (g.outcome === 'win') R[c].wins++; else if (g.outcome === 'loss') R[c].losses++; else if (g.outcome === 'draw') R[c].draws++; }
+    }
+    P.ratings = R; P.statsV2 = true;
+    try { await store.saveProfile(P); } catch (e) { console.warn(e); }
   }
   const pctOf = (x, t) => t ? x / t * 100 : 0;
   const wdl = st => [h('div.wdl', h('i', { style: { width: pctOf(st.w, st.n) + '%', background: 'var(--win)' } }), h('i', { style: { width: pctOf(st.d, st.n) + '%', background: 'var(--draw)' } }), h('i', { style: { width: pctOf(st.l, st.n) + '%', background: 'var(--red)' } })),
@@ -54,7 +65,14 @@ export async function profileView(main, _p, ctx) {
         h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
           user ? h('button.btn', { on: { click: async () => { await signOut(); toast('Signed out'); ctx.go('/'); } } }, 'Sign out')
             : cloudEnabled && h('a.btn.primary', { href: '#/login' }, 'Sign in or create an account'),
-          h('button.btn.danger', { on: { click: resetAll } }, 'Delete all my data'))),
+          h('span.tip-wrap', h('button.btn.danger', { 'aria-describedby': 'del-tip', on: { click: resetAll } }, 'Delete all my data'),
+            h('span.tip', { id: 'del-tip', role: 'tooltip' },
+              h('b', 'This permanently deletes:'),
+              h('ul', h('li', 'Your profile: name, picture and chosen level'), h('li', 'All 5 ratings and their graphs'), h('li', 'Your games, wins and losses, and every saved game in History'),
+                user && h('li', `Your username @${P.username || ''}, so someone else can take it`), user && h('li', 'Your saved Spotify links')),
+              h('b', 'It keeps:'),
+              h('ul', user ? h('li', 'Your sign-in (Google / password), so you can start fresh and pick a level again') : h('li', 'Nothing: you start again as a new guest'),
+                h('li', 'Songs and settings saved on this device')))))),
       user && methodsCard()),
     h('div.side-stack', ratingsCard)));
 
@@ -63,7 +81,7 @@ export async function profileView(main, _p, ctx) {
     if (sel === 'overall') {
       body.push(h('div.rtiles.big', CATEGORIES.map(c => { const st = statsFor(c.id);
         return h('button.rtile', { on: { click: () => { sel = c.id; ratingsCard_render(); } } }, h('span.rl', c.icon + ' ' + c.label),
-          h('b', R[c.id].rating, isProvisional(R[c.id].rd) ? h('span.q', '?') : ''), h('small', games ? `${st.n} ${st.n === 1 ? 'game' : 'games'}` : '…')); })),
+          h('b', R[c.id].rating, isProvisional(R[c.id].rd) ? h('span.q', '?') : ''), h('small', games ? plural(st.n, 'game') : '…')); })),
         h('p.muted', { style: { margin: '12px 0 0', fontSize: '.85rem' } }, 'Each type of game has its own rating. They all started at your level and change only when you play rated games of that type. Tap one for its details.'));
     } else {
       const e = R[sel], st = statsFor(sel), prov = isProvisional(e.rd);
@@ -82,7 +100,9 @@ export async function profileView(main, _p, ctx) {
       ...body);
   }
   ratingsCard_render();
-  store.listGames().then(gs => { games = gs; renderOverallStats(); ratingsCard_render(); }).catch(() => { games = []; renderOverallStats(); ratingsCard_render(); });
+  const ready = gs => { games = gs; renderOverallStats(); ratingsCard_render(); };
+  if (P.statsV2) ready([]);
+  else store.listGames().then(async gs => { await migrateCounters(gs); ready(gs); }).catch(() => ready([]));
 
   function methodsCard() {
     const hasG = user.providers.includes('google.com'), hasPw = user.providers.includes('password');

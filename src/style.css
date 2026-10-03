@@ -760,3 +760,13 @@ details,details *,details *::before,details *::after{box-sizing:border-box}
 .filters{display:grid;gap:8px}
 .frow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .flabel{font-size:.8rem;font-weight:800;color:var(--muted);min-width:44px}
+/* level cards: selectable text */
+div.level{cursor:pointer;user-select:text;-webkit-user-select:text}
+div.level:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+/* hover explanation for "Delete all my data" */
+.tip-wrap{position:relative;display:inline-flex}
+.tip{position:absolute;left:0;bottom:calc(100% + 10px);z-index:20;width:min(330px,80vw);padding:12px 14px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);
+  box-shadow:var(--shadow);font-size:.82rem;line-height:1.45;color:var(--text);opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .15s,transform .15s,visibility .15s;pointer-events:none}
+.tip ul{margin:4px 0 8px;padding-left:18px;color:var(--muted)}
+.tip ul:last-child{margin-bottom:0}
+.tip-wrap:hover .tip,.tip-wrap:focus-within .tip{opacity:1;visibility:visible;transform:none}

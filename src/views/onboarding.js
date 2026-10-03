@@ -27,16 +27,20 @@ export async function onboardingView(main, _p, ctx) {
   });
 
   const levelBox = h('div');
+  // Level cards act like buttons but keep their text selectable (so it can be copied).
+  const pick = (choose, on) => ({ role: 'button', tabindex: 0, 'aria-pressed': String(on), on: {
+    click: () => { if (String(getSelection?.() || '').length) return; choose(); renderLevels(); },
+    keydown: e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(); renderLevels(); } } } });
   function renderLevels() {
     clear(levelBox);
     if (hasGuest) levelBox.append(h('div.levels', { style: { gridTemplateColumns: '1fr 1fr' } },
-      h('button.level', { 'aria-pressed': String(useGuest), on: { click: () => { useGuest = true; renderLevels(); } } },
+      h('div.level', pick(() => { useGuest = true; }, useGuest),
         h('div.pc', '↪'), h('b', 'Continue my guest progress'), h('span.rr', `Rating ${guest.profile.rating}${isProvisional(guest.profile.rd) ? '?' : ''}`),
-        h('p', `Moves your rating and ${guest.games.length} saved game${guest.games.length === 1 ? '' : 's'} from this browser into your account.`)),
-      h('button.level', { 'aria-pressed': String(!useGuest), on: { click: () => { useGuest = false; renderLevels(); } } },
+        h('p', `Moves your rating and ${guest.games.length} saved ${guest.games.length > 1 ? 'games' : 'game'} from this browser into your account.`)),
+      h('div.level', pick(() => { useGuest = false; }, !useGuest),
         h('div.pc', '✦'), h('b', 'Start fresh'), h('span.rr', 'Choose a level'), h('p', 'Your guest games stay in this browser only.'))));
-    if (!useGuest) levelBox.append(h('div.levels', Object.entries(LEVELS).map(([k, L]) => h('button.level', { 'data-k': k, 'aria-pressed': String(k === level), on: { click: () => { level = k; renderLevels(); } } },
-      h('div.pc', h('img', { src: `/pieces3d/porcelain/${PIECES[k]}.webp`, alt: '' })), h('b', L.label), h('span.rr', `Starts at ${L.rating}`), h('p', L.blurb)))));
+    if (!useGuest) levelBox.append(h('div.levels', Object.entries(LEVELS).map(([k, L]) => h('div.level', { 'data-k': k, ...pick(() => { level = k; }, k === level) },
+      h('div.pc', h('img', { src: `/pieces3d/porcelain/${PIECES[k]}.webp`, alt: '' })), h('b', L.label), h('span.rr', `Starts at ${L.rating} rating`), h('p', L.blurb)))));
   }
   renderLevels();
 
@@ -51,7 +55,7 @@ export async function onboardingView(main, _p, ctx) {
         const L = LEVELS[level];
         profile = { name, level, rating: L.rating, rd: START_RD, vol: NEW_VOL, peak: L.rating, startRating: L.rating,
           games: 0, wins: 0, losses: 0, draws: 0, createdAt: Date.now(), lastPlayed: null, ratingHistory: [{ t: Date.now(), r: L.rating }],
-          ratings: startingRatings(L.rating) };
+          ratings: startingRatings(L.rating), statsV2: true };
       }
       const nowUser = session().user;                 // read at click time (the page may have been drawn a moment before sign-up finished)
       if (nowUser) {
@@ -68,7 +72,7 @@ export async function onboardingView(main, _p, ctx) {
   main.append(h('section.onb',
     h('h1', `Welcome to ${APP_NAME}`),
     h('p.muted', hasGuest ? 'You already played here as a guest. Bring that progress into your account, or start fresh.'
-      : 'Pick the level that fits you. It sets your starting rating. Like on chess.com, your first games move your rating a lot, so a Pro who loses early drops fast, and it settles as you play more.'),
+      : 'Pick the level that fits you. It sets your starting rating: Beginner 800, Intermediate 1200 or Pro 1600. Your first couple of games move your rating a lot, so a Pro who loses early drops fast, and it settles as you play more.'),
     levelBox,
     user && h('div.field', h('label', { for: 'un' }, 'Username'), userIn, avail, !lockedUser && h('small.muted', 'Friends use this to challenge you online. It can\'t be changed later.')),
     h('div.field', h('label', { for: 'nm' }, 'Display name'), nameIn),

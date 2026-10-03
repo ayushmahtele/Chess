@@ -2,7 +2,7 @@ import { h, clear, toast, fmtDate } from '../dom.js';
 import { icon } from '../icons.js';
 import { TIME_CONTROLS } from '../config.js';
 import { session, cloudEnabled, friendlyError, cleanUsername } from '../store/index.js';
-import { isProvisional, ratingsOf, categoryOfTc, ONLINE_CATS, catInfo } from '../rating.js';
+import { isProvisional, ratingsOf, categoryOfTc, ONLINE_CATS, catInfo, plural } from '../rating.js';
 import { onlineRating, quickMatch, challenge, createGame, joinGame, declineChallenge, COLL, LAST_KEY } from '../online.js';
 
 const tcLabel = id => TIME_CONTROLS.find(t => t.id === id)?.label || 'No clock';
@@ -26,7 +26,8 @@ export async function onlineLobbyView(main, _p, ctx) {
   function renderSetup() {
     clear(setup).append(
       h('div.field', h('span.lbl', 'Time control'),
-        h('div.chip-group', TIME_CONTROLS.map(t => h('button.chip', { 'aria-pressed': String(settings.tc === t.id), on: { click: () => { settings.tc = t.id; saveSettings(); renderSetup(); renderRatings(); } } }, t.label)))),
+        h('div.tc-group', [...new Set(TIME_CONTROLS.map(t => t.group))].map(g => [h('span.g', g), h('div.chip-group', TIME_CONTROLS.filter(t => t.group === g).map(t =>
+          h('button.chip', { 'aria-pressed': String(settings.tc === t.id), on: { click: () => { settings.tc = t.id; saveSettings(); renderSetup(); renderRatings(); } } }, t.label)))]))),
       h('label.switch', h('span', h('b', 'Rated'), h('small', 'Changes your online rating')),
         h('input.toggle', { type: 'checkbox', checked: settings.rated, on: { change: e => { settings.rated = e.target.checked; saveSettings(); } } })));
   }
@@ -55,7 +56,7 @@ export async function onlineLobbyView(main, _p, ctx) {
     const R = ratingsOf(P), sel = categoryOfTc(settings.tc);
     clear(ratingCard).append(h('h2', 'Online ratings'),
       h('div.rtiles', ONLINE_CATS.map(id => h('div.rtile', { class: id === sel ? 'sel' : '' }, h('span.rl', catInfo(id).icon + ' ' + catInfo(id).label),
-        h('b', R[id].rating, isProvisional(R[id].rd) ? h('span.q', '?') : ''), h('small', `${R[id].games || 0} ${(R[id].games || 0) === 1 ? 'game' : 'games'}`)))),
+        h('b', R[id].rating, isProvisional(R[id].rd) ? h('span.q', '?') : ''), h('small', plural(R[id].games || 0, 'game'))))),
       h('p.muted', { style: { margin: '10px 0 0', fontSize: '.85rem' } }, `This game counts for your ${catInfo(sel).icon} ${catInfo(sel).label} rating. Each time control has its own rating, separate from vs Computer.`));
   }
   renderRatings();

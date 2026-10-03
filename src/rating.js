@@ -116,3 +116,12 @@ export function rateGame(entry, oppRating, oppRd, score) {
   return { ...entry, ...next, peak: Math.max(entry.peak || 0, next.rating), lastPlayed: Date.now(),
     history: [...(entry.history || []), { t: Date.now(), r: next.rating }].slice(-300) };
 }
+
+/** Count a finished game in a category (kept on the profile, so deleting History doesn't change it). */
+export function countResult(entry, outcome) {
+  if (outcome === 'aborted') return entry;
+  entry.games = (entry.games || 0) + 1;
+  if (outcome === 'win') entry.wins = (entry.wins || 0) + 1; else if (outcome === 'loss') entry.losses = (entry.losses || 0) + 1; else entry.draws = (entry.draws || 0) + 1;
+  return entry;
+}
+export const plural = (n, word) => `${n} ${n > 1 ? word + 's' : word}`;

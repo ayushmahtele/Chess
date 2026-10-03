@@ -15,7 +15,7 @@ export function gameRow(g, onDelete) {
     h('span.badge', { class: badge[0], 'aria-label': g.outcome }, badge[1]),
     h('div', { style: { minWidth: 0 } },
       h('div.t', g.mode !== 'local' ? `vs ${opp}` : opp),
-      h('div.s', `${reason} · ${Math.ceil((g.plies || 0) / 2)} moves · ${tcName(g.timeControl)} · ${g.rated ? 'Rated' : 'Casual'} · ${fmtDate(g.endedAt)}`)),
+      h('div.s', `${reason} · ${(n => n + (n > 1 ? ' moves' : ' move'))(Math.ceil((g.plies || 0) / 2))} · ${tcName(g.timeControl)} · ${g.rated ? 'Rated' : 'Casual'} · ${fmtDate(g.endedAt)}`)),
     delta != null ? h('span.delta', { class: delta >= 0 ? 'up' : 'down' }, (delta >= 0 ? '+' : '') + delta) : h('span'),
     onDelete ? h('button.trash', { title: 'Delete game', 'aria-label': 'Delete game', on: { click: e => { e.preventDefault(); e.stopPropagation(); onDelete(g); } } }, icon('trash')) : null);
 }
