@@ -142,11 +142,13 @@ function place() {
   if (!slotEl || !document.body.contains(slotEl)) { host.classList.add('parked'); host.style.cssText = ''; return; }
   const step = () => {
     if (!host || !slotEl || !document.body.contains(slotEl)) { host?.classList.add('parked'); return; }
-    const r = slotEl.getBoundingClientRect(), box = slotEl.closest('.drawer')?.getBoundingClientRect() || r;
+    const r = slotEl.getBoundingClientRect(), dr = slotEl.closest('.drawer'), box = dr?.getBoundingClientRect() || r;
+    const head = dr?.querySelector('.dhead')?.getBoundingClientRect();     // the panel's sticky title bar stays on top
+    const boxTop = head ? Math.max(box.top, head.bottom) : box.top;
     host.classList.remove('parked');
     host.style.left = r.left + 'px'; host.style.top = r.top + 'px'; host.style.width = r.width + 'px';
     // hide the parts scrolled out of the panel
-    const top = Math.max(0, box.top - r.top), bottom = Math.max(0, r.bottom - box.bottom);
+    const top = Math.max(0, boxTop - r.top), bottom = Math.max(0, r.bottom - box.bottom);
     host.style.clipPath = `inset(${top}px 0 ${bottom}px 0 round 12px)`;
     host.style.pointerEvents = top + bottom >= r.height ? 'none' : '';
     raf = requestAnimationFrame(step);

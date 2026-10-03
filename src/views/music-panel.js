@@ -7,47 +7,81 @@ import { getPrefs, setPref } from '../prefs.js';
 let drawer = null;
 
 export function musicButton() {
-  const btn = h('button.icon-btn', { title: 'Music and sound', 'aria-label': 'Music and sound', on: { click: toggle } }, icon('music'));
-  const sync = () => btn.classList.toggle('on', music.playing || spotify.playing);
-  sync(); music.on(sync); spotify.on(sync);
+  const btn = h('button.icon-btn.music-btn', { title: 'Music and sound', 'aria-label': 'Music and sound', 'aria-haspopup': 'dialog', 'aria-expanded': String(!!drawer),
+    on: { click: () => toggle() } }, icon('music'), h('span.eq', { 'aria-hidden': 'true' }, h('i'), h('i'), h('i')));
+  btn.classList.toggle('open', !!drawer);
+  const sync = () => {
+    if (sync.ran && !btn.isConnected) { off1(); off2(); return; }   // button was replaced: stop listening
+    sync.ran = true;
+    btn.classList.toggle('on', music.playing || spotify.playing);
+  };
+  const off1 = music.on(sync), off2 = spotify.on(sync); sync();
   return btn;
 }
 
-/** Open the music panel from anywhere (e.g. the Ad-free music card). */
-export function openMusic() { if (!drawer) toggle(); }
+/** Mark the top-bar music button as "open" while the panel is showing, so it is clear where the panel comes from. */
+function markButtons(open, ping = false) {
+  document.querySelectorAll('.music-btn').forEach(b => {
+    b.classList.toggle('open', open); b.setAttribute('aria-expanded', String(open));
+    if (ping) { b.classList.remove('ping'); void b.offsetWidth; b.classList.add('ping'); b.addEventListener('animationend', () => b.classList.remove('ping'), { once: true }); }
+  });
+}
+// A small arrow on top of the panel points at the music button, so it is clear where the panel belongs.
+function aimNotch() {
+  if (!drawer) return;
+  const b = [...document.querySelectorAll('.music-btn')].find(x => x.isConnected && x.offsetParent);
+  const dr = drawer.getBoundingClientRect(), br = b?.getBoundingClientRect();
+  const x = br ? br.left + br.width / 2 : -1;
+  if (!br || x < dr.left + 22 || x > dr.right - 22) { drawer._notch?.remove(); drawer._notch = null; return; }
+  if (!drawer._notch) { drawer._notch = h('div.drawer-notch', { 'aria-hidden': 'true' }); document.body.append(drawer._notch); }
+  drawer._notch.style.left = x + 'px'; drawer._notch.style.top = (dr.top - 7) + 'px';
+}
 
-function toggle() {
+/** Open the music panel from anywhere (e.g. the Ad-free music card). */
+export function openMusic() { if (!drawer) toggle(true); }
+
+function toggle(fromElsewhere = false) {
   if (drawer) { close(); return; }
-  drawer = h('div.drawer', { role: 'dialog', 'aria-label': 'Music and sound' });
+  drawer = h('div.drawer', { role: 'dialog', 'aria-label': 'Music and sound', tabindex: -1 });
   document.body.append(drawer);
   const off = music.on(render);
   const offTime = music.onTime(updateTime);
   const offSp = spotify.on(render);
-  drawer._off = () => { off(); offTime(); offSp(); spotify.detach(); };
+  window.addEventListener('resize', aimNotch);
+  drawer._off = () => { off(); offTime(); offSp(); spotify.detach(); window.removeEventListener('resize', aimNotch); drawer._notch?.remove(); };
+  drawer.addEventListener('animationend', aimNotch, { once: true });
   render();
+  markButtons(true, fromElsewhere);
+  aimNotch();
+  drawer.focus({ preventScroll: true });
   setTimeout(() => document.addEventListener('pointerdown', outside), 0);
   document.addEventListener('keydown', esc);
 }
 export function closeMusic() { close(); }
 
-/** Small "ad-free music" card with its own Play / Pause button. */
+/** Slim "ad-free music" strip: tap it to open the music panel, or use its own Play / Pause button. */
 export function musicCard() {
-  const btn = h('button.mc-play', { on: { click: () => music.toggle() } });
+  const btn = h('button.mc-play', { type: 'button', on: { click: () => music.toggle() } });
   const sub = h('span.mc-sub');
-  const card = h('div.music-card', h('span.mc-icon', { 'aria-hidden': 'true' }, icon('music')),
-    h('button.mc-text', { type: 'button', title: 'Open the music panel', on: { click: openMusic } }, h('b', 'Ad-free music'), sub), btn);
+  const card = h('div.music-card',
+    h('button.mc-open', { type: 'button', 'aria-haspopup': 'dialog', on: { click: openMusic } },
+      h('span.mc-icon', { 'aria-hidden': 'true' }, icon('music'), h('span.eq', h('i'), h('i'), h('i'))),
+      h('span.mc-text', h('b', 'Ad-free music'), sub),
+      h('span.mc-more', h('span', 'All music'), icon('fwd'))),
+    btn);
   const sync = () => {
     if (sync.ran && !card.isConnected) { off(); return; }   // card left the page: stop listening
     sync.ran = true;
-    btn.innerHTML = ''; btn.append(icon(music.playing ? 'pause' : 'play'), music.playing ? 'Pause' : 'Play');
+    card.classList.toggle('playing', music.playing);
+    btn.innerHTML = ''; btn.append(icon(music.playing ? 'pause' : 'play'), h('span', music.playing ? 'Pause' : 'Play'));
     btn.setAttribute('aria-label', music.playing ? 'Pause music' : 'Play music');
-    sub.textContent = music.playing ? '♪ ' + music.currentTrack.name : 'Built-in tracks or your songs';
+    sub.textContent = music.playing ? 'Now playing: ' + music.currentTrack.name : 'Built-in tracks, your songs or Spotify';
   };
   const off = music.on(sync); sync();
   return card;
 }
-function close() { if (!drawer) return; drawer._off(); drawer.remove(); drawer = null; document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', esc); }
-const outside = e => { if (drawer && !drawer.contains(e.target) && !e.target.closest('.sp-host') && !e.target.closest('.icon-btn[title="Music and sound"]')) close(); };
+function close() { if (!drawer) return; drawer._off(); drawer.remove(); drawer = null; markButtons(false); document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', esc); }
+const outside = e => { if (drawer && !drawer.contains(e.target) && !e.target.closest('.sp-host') && !e.target.closest('.music-btn') && !e.target.closest('.mc-open')) close(); };
 const esc = e => { if (e.key === 'Escape') close(); };
 
 const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
@@ -92,23 +126,29 @@ function spotifySection() {
     h('button.trash', { title: 'Rename', 'aria-label': 'Rename ' + itemName(it, i), on: { click: () => { const n = prompt('Name for this Spotify link:', itemName(it, i)); if (n !== null) spotify.rename(it.id, n); } } }, '✎'),
     h('button.trash', { title: 'Remove', 'aria-label': 'Remove ' + itemName(it, i), on: { click: () => spotify.remove(it.id) } }, icon('trash')));
   return h('div.sp-section',
-    h('div.sp-title', h('span.sp-logo', '●'), h('span.sub', 'Spotify'),
-      link && h('a.sp-open', { href: spotifyUrl(link), target: '_blank', rel: 'noopener' }, 'Open in Spotify ↗')),
+    h('div.sp-title', h('span.sp-logo', '●'), h('span.sub', 'Spotify')),
     link && h('div.sp-slot'),
+    link && h('div.sp-actions',
+      h('a.btn.sp-login', { href: SPOTIFY_LOGIN, target: '_blank', rel: 'noopener', title: 'Opens Spotify\'s login page in a new browser tab' }, 'Log in for full songs'),
+      h('a.btn', { href: spotifyUrl(link), target: '_blank', rel: 'noopener' }, 'Open in Spotify ↗')),
     list.length > 0 && h('div.sp-list', list.map(row)),
     h('div.sp-row', input, h('button.btn', { on: { click: go } }, 'Add')),
     err,
-    link && h('details.sp-help', h('summary', 'Want to play the full song without limits?'),
+    link && h('details.sp-help', h('summary', 'Only hearing 30-second previews?'),
       h('ol',
-        h('li', 'Log in at ', h('a', { href: 'https://open.spotify.com', target: '_blank', rel: 'noopener' }, 'open.spotify.com'), ' in this same browser, then come back and reload this page.'),
-        h('li', 'Still "Preview"? Your browser is blocking Spotify\'s login inside other websites (Incognito windows always do). In Chrome click the icon left of the web address → turn on ', h('b', 'Third-party cookies'), ' for this site, then reload.'),
-        h('li', 'Or use ', h('b', 'Open in Spotify ↗'), ': the Spotify app always plays full songs.'),
+        h('li', 'Tap ', h('b', 'Log in for full songs'), '. Spotify\'s login page opens in a new tab of this browser. Log in, then come back here and reload the page.'),
+        h('li', 'Don\'t use the green ', h('b', 'Sign in'), ' button inside the player on phones. It belongs to Spotify and opens the Spotify app instead of this browser.'),
+        h('li', 'Still preview after logging in? Your browser is blocking Spotify inside other websites (Incognito always does). In Chrome tap the icon left of the web address → ', h('b', 'Cookies and site data'), ' → allow ', h('b', 'third-party cookies'), ' for this site, then reload.'),
         h('li', 'Ads come from Spotify itself: free Spotify accounts hear ads, Spotify Premium removes them.'))),
     !list.length && h('p.note', 'Add as many playlists, albums or songs as you like. They are saved to your account, so they are here every time, on every device you sign in.'));
 }
+// Spotify's own login page. accounts.spotify.com opens in the browser (not the Spotify app), so the login cookie
+// lands in this browser, which is what the player needs to play full songs.
+const SPOTIFY_LOGIN = 'https://accounts.spotify.com/login?continue=' + encodeURIComponent('https://www.spotify.com/account/overview/');
 
 function render() {
   if (!drawer) return;
+  const keepScroll = drawer.scrollTop;
   const cur = music.currentTrack;
   const file = h('input', { type: 'file', accept: 'audio/*', multiple: true, class: 'hidden', on: { change: async e => { await music.addFiles(e.target.files); e.target.value = ''; } } });
   const trackRow = t => h('button.track', { class: t.id === music.current ? 'cur' : '', 'aria-label': (t.id === music.current && music.playing ? 'Pause ' : 'Play ') + t.name, on: { click: () => t.id === music.current ? music.toggle() : music.play(t.id) } },
@@ -117,7 +157,7 @@ function render() {
     !t.builtin && h('span.trash', { role: 'button', tabindex: 0, 'aria-label': 'Remove ' + t.name, title: 'Remove',
       on: { click: e => { e.stopPropagation(); music.removeSong(t.id); } } }, icon('trash')));
   clear(drawer).append(
-    h('h3', 'Music'),
+    h('div.dhead', h('h3', 'Music'), h('button.icon-btn.dclose', { title: 'Close', 'aria-label': 'Close music panel', on: { click: close } }, icon('x'))),
     h('div.now', { class: music.playing ? 'playing' : '' }, h('div.disc'),
       h('div', { style: { minWidth: 0 } }, h('div.nt', cur.name), h('small.muted', music.playing ? 'Playing' : 'Paused'))),
     seekBar(),
@@ -137,6 +177,7 @@ function render() {
     h('button.btn', { style: { width: '100%', marginTop: '6px' }, on: { click: () => file.click() } }, icon('plus'), 'Add songs'),
     spotifySection(),
   );
+  drawer.scrollTop = keepScroll;
   updateTime(music.position);
   const slot = drawer.querySelector('.sp-slot');
   if (slot) spotify.attach(slot); else spotify.detach();

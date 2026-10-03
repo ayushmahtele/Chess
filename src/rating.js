@@ -124,4 +124,4 @@ export function countResult(entry, outcome) {
   if (outcome === 'win') entry.wins = (entry.wins || 0) + 1; else if (outcome === 'loss') entry.losses = (entry.losses || 0) + 1; else entry.draws = (entry.draws || 0) + 1;
   return entry;
 }
-export const plural = (n, word) => `${n} ${n > 1 ? word + 's' : word}`;
+export const plural = (n, word) => `${n} ${n === 1 ? word : word + 's'}`;

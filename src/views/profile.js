@@ -1,6 +1,6 @@
 import { h, clear, confirmBox, toast, fmtDate } from '../dom.js';
 import { icon } from '../icons.js';
-import { session, cloudEnabled, signOut, linkGoogle, addPassword, changePassword, claimUsername, friendlyError } from '../store/index.js';
+import { session, cloudEnabled, signOut, linkGoogle, addPassword, changePassword, claimUsername, changeUsername, usernameOwner, cleanUsername, USERNAME_RE, friendlyError } from '../store/index.js';
 import { avatar, avatarSrc } from '../avatar.js';
 import { openPhotoEditor } from './photo-editor.js';
 import { LEVELS, isProvisional, ratingsOf, overallOf, categoryOfTc, CATEGORIES, ONLINE_CATS, catInfo, plural } from '../rating.js';
@@ -31,7 +31,7 @@ export async function profileView(main, _p, ctx) {
   const wdl = st => [h('div.wdl', h('i', { style: { width: pctOf(st.w, st.n) + '%', background: 'var(--win)' } }), h('i', { style: { width: pctOf(st.d, st.n) + '%', background: 'var(--draw)' } }), h('i', { style: { width: pctOf(st.l, st.n) + '%', background: 'var(--red)' } })),
     h('small.muted', `${st.w} won · ${st.d} drawn · ${st.l} lost · ${st.n ? Math.round(pctOf(st.w, st.n)) + '% win rate' : 'no games yet'} (aborted games not counted)`)];
   const overallStats = h('div');
-  const ratingsCard = h('div.card');
+  const ratingsCard = h('div.card.p-rt');
   function renderOverallStats() {
     const st = statsFor('overall');
     clear(overallStats).append(
@@ -41,7 +41,7 @@ export async function profileView(main, _p, ctx) {
   }
   renderOverallStats();
 
-  const nameIn = h('input.text-in', { value: P.name, maxlength: 24, 'aria-label': 'Display name' });
+  const nameIn = h('input.text-in', { id: 'pf-name', value: P.name, maxlength: 24 });
   const photo = h('button.avatar-edit', { title: 'Change profile picture', 'aria-label': 'Change profile picture', on: { click: async () => {
     const result = await openPhotoEditor(avatarSrc(P, user));
     if (result === null) return;
@@ -49,19 +49,21 @@ export async function profileView(main, _p, ctx) {
     catch (e) { toast('Could not save the picture: ' + (e.message || e), 'error'); }
   } } }, avatar(P, user), h('span.cam', { 'aria-hidden': 'true' }, '📷'));
 
-  main.append(h('div.page-head', h('h1', 'Profile')), h('div.profile', { style: { marginTop: '18px' } },
-    h('div.side-stack',
-      h('div.card',
-        h('div.prof-head', photo, h('div', h('h2', { style: { margin: 0 } }, P.name),
-          h('div.muted', user ? (P.username ? '@' + P.username : '') + (user.email ? ' · ' + user.email : '') : 'Guest account (this browser only)'),
-          h('div.muted', `Joined ${fmtDate(P.createdAt)} · Started as ${LEVELS[P.level]?.label || P.level} (${P.startRating})`))),
-        h('div.rlabel-big', 'Overall rating'),
-        h('div.rating-big', h('span.n', O.rating), isProvisional(O.rd) && h('span.q', '?')),
-        h('p.muted', { style: { margin: '4px 0 0' } }, 'The average of your ⚡ Bullet, 🔥 Blitz, ⏱ Rapid and ♾ No clock ratings. Games against the computer are not included.'),
-        overallStats),
-      h('div.card', h('h2', 'Account'),
-        h('div.field', h('label', 'Display name'), h('div', { style: { display: 'flex', gap: '8px' } }, nameIn,
+  main.append(h('div.page-head', h('h1', 'Profile')), h('div.profile', { class: user ? '' : 'no-methods', style: { marginTop: '18px' } },
+    h('div.card.p-ov',
+      h('div.prof-head', photo, h('div', { style: { minWidth: 0 } }, h('h2', { style: { margin: 0 } }, P.name),
+        h('div.muted', { style: { overflowWrap: 'anywhere' } }, user ? (P.username ? '@' + P.username : '') + (user.email ? ' · ' + user.email : '') : 'Guest account (this browser only)'),
+        h('div.muted', `Joined ${fmtDate(P.createdAt)} · Started as ${LEVELS[P.level]?.label || P.level} (${P.startRating})`))),
+      h('div.rlabel-big', 'Overall rating'),
+      h('div.rating-big', h('span.n', O.rating), isProvisional(O.rd) && h('span.q', '?')),
+      h('p.muted', { style: { margin: '4px 0 0' } }, 'The average of your ⚡ Bullet, 🔥 Blitz, ⏱ Rapid and ♾ No clock ratings. Games against the computer are not included.'),
+      overallStats),
+    ratingsCard,
+    h('div.card.p-ac', h('h2', 'Account'),
+      h('div.acct-rows',
+        h('div.field', h('label', { for: 'pf-name' }, 'Display name'), h('div.name-row', nameIn,
           h('button.btn', { on: { click: async () => { P.name = nameIn.value.trim() || P.name; await store.saveProfile(P); await ctx.refreshProfile(); toast('Name updated'); } } }, 'Save'))),
+        user && P.username && usernameField(),
         h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } },
           user ? h('button.btn', { on: { click: async () => { await signOut(); toast('Signed out'); ctx.go('/'); } } }, 'Sign out')
             : cloudEnabled && h('a.btn.primary', { href: '#/login' }, 'Sign in or create an account'),
@@ -72,9 +74,47 @@ export async function profileView(main, _p, ctx) {
                 user && h('li', `Your username @${P.username || ''}, so someone else can take it`), user && h('li', 'Your saved Spotify links')),
               h('b', 'It keeps:'),
               h('ul', user ? h('li', 'Your sign-in (Google / password), so you can start fresh and pick a level again') : h('li', 'Nothing: you start again as a new guest'),
-                h('li', 'Songs and settings saved on this device')))))),
-      user && methodsCard()),
-    h('div.side-stack', ratingsCard)));
+                h('li', 'Songs and settings saved on this device'))))))),
+    user && methodsCard()));
+
+  /** Username: shown to friends and used to challenge you; for password accounts it is also the sign-in name. */
+  function usernameField() {
+    const old = P.username, hasPw = user.providers.includes('password');
+    const input = h('input.text-in', { id: 'pf-user', value: old, maxlength: 20, autocapitalize: 'none', autocomplete: 'off', spellcheck: false });
+    const note = h('small.avail', { 'aria-live': 'polite' });
+    const btn = h('button.btn', { disabled: true, on: { click: save } }, 'Change');
+    let t, okName = null;
+    input.addEventListener('input', () => {
+      clearTimeout(t); okName = null; btn.disabled = true;
+      const u = cleanUsername(input.value);
+      if (u === old) { note.textContent = ''; note.className = 'avail'; return; }
+      if (!USERNAME_RE.test(u)) { note.textContent = u ? '3–20 characters: letters, numbers and _' : ''; note.className = 'avail bad'; return; }
+      note.textContent = 'Checking…'; note.className = 'avail';
+      t = setTimeout(async () => {
+        try {
+          const owner = await usernameOwner(u);
+          if (cleanUsername(input.value) !== u) return;              // typed on meanwhile
+          const taken = owner && owner !== user.uid;
+          note.textContent = taken ? `@${u} is taken` : `@${u} is available`; note.className = 'avail ' + (taken ? 'bad' : 'ok');
+          if (!taken) { okName = u; btn.disabled = false; }
+        } catch { note.textContent = 'Could not check right now.'; note.className = 'avail bad'; }
+      }, 350);
+    });
+    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !btn.disabled) save(); });
+    async function save() {
+      const u = okName; if (!u) return;
+      if (!(await confirmBox(`Change your username to @${u}?`,
+        (hasPw ? `From now on you sign in with @${u} and your same password. ` : '') + `Friends will find you as @${u}. @${old} becomes free, so someone else could take it.`,
+        'Change username'))) return;
+      btn.disabled = true; btn.textContent = 'Changing…';
+      try { await changeUsername(u); await ctx.refreshProfile(); toast(`Your username is now @${u}`); ctx.go('/profile'); }
+      catch (e) { toast(friendlyError(e), 'error'); btn.disabled = false; btn.textContent = 'Change'; }
+    }
+    return h('div.field', h('label', { for: 'pf-user' }, 'Username'),
+      h('div.uname-row', h('span.uname-in', h('span.at', { 'aria-hidden': 'true' }, '@'), input), btn),
+      note,
+      h('small.muted', hasPw ? 'Friends use it to challenge you, and you sign in with it.' : 'Friends use it to challenge you online.'));
+  }
 
   function ratingsCard_render() {
     const body = [];
@@ -110,7 +150,7 @@ export async function profileView(main, _p, ctx) {
     const pw2In = h('input.text-in', { type: 'password', placeholder: 'Repeat new password', autocomplete: 'new-password', 'aria-label': 'Repeat new password' });
     const unIn = h('input.text-in', { placeholder: 'username', autocapitalize: 'none', 'aria-label': 'Username' });
     const run = fn => async () => { try { await fn(); } catch (e) { toast(friendlyError(e), 'error'); } };
-    return h('div.card', h('h2', 'Sign-in methods'),
+    return h('div.card.p-me', h('h2', 'Sign-in methods'),
       h('p.muted', { style: { marginTop: 0 } }, 'Link both so you can sign in either way. Your rating and games stay the same.'),
       h('div.methods',
         h('div.method', h('span.mi', icon('google')), h('div.md', h('b', 'Google'), h('small', hasG ? `Linked${user.email ? ' to ' + user.email : ''}` : 'Not linked yet')),

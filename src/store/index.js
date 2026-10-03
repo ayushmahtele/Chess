@@ -104,3 +104,36 @@ export async function claimUsername(name) {
     void p;
   });
 }
+
+/**
+ * Change the username. Everything else (rating, games, friends' challenges) stays the same.
+ * Accounts that also sign in with username + password go through the server, which moves the sign-in name too.
+ */
+export async function changeUsername(name) {
+  const { user, db } = state;
+  if (!user || !db) throw new Error('Sign in to change your username.');
+  const u = cleanUsername(name);
+  if (!USERNAME_RE.test(u)) throw new Error('Usernames are 3–20 characters: letters, numbers and _ only.');
+  if (user.providers.includes('password')) {
+    const idToken = await need().idToken();
+    let r;
+    try { r = await fetch('/api/change-username', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken, username: u }) }); }
+    catch { throw new Error('Network error. Check your internet connection.'); }
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || 'Could not change your username. Please try again in a minute.');
+    await need().refresh();
+    return u;
+  }
+  await db.tx(async t => {
+    const p = await t.get(`users/${user.uid}`);
+    const old = p?.username || null;
+    if (old === u) return;
+    const taken = await t.get(`usernames/${u}`);
+    if (taken && taken.uid !== user.uid) throw new Error(`@${u} is already taken.`);
+    const oldDoc = old ? await t.get(`usernames/${old}`) : null;
+    if (!taken) t.set(`usernames/${u}`, { uid: user.uid, createdAt: Date.now() });
+    if (oldDoc?.uid === user.uid) t.del(`usernames/${old}`);
+    t.update(`users/${user.uid}`, { username: u, usernameChangedAt: Date.now() });
+  });
+  return u;
+}

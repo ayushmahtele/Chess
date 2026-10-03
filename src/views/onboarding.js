@@ -76,7 +76,7 @@ export async function onboardingView(main, _p, ctx) {
       : 'Pick the level that fits you. It sets your starting rating. Your first couple of games move your rating a lot. A pro who loses early will see their rating drop quickly.'),
     musicCard(),
     levelBox,
-    user && h('div.field', h('label', { for: 'un' }, 'Username'), userIn, avail, !lockedUser && h('small.muted', 'Friends use this to challenge you online. It can\'t be changed later.')),
+    user && h('div.field', h('label', { for: 'un' }, 'Username'), userIn, avail, !lockedUser && h('small.muted', 'Friends use this to challenge you online. You can change it later in your Profile.')),
     h('div.field', h('label', { for: 'nm' }, 'Display name'), nameIn),
     h('div', { style: { display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' } },
       btn, !user && cloudEnabled && h('a.btn', { href: '#/login', style: { height: '50px' } }, 'Sign in or create an account instead')),
