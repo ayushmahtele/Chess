@@ -1,8 +1,8 @@
-import { h, toast, fmtDate } from '../dom.js';
+import { h, toast, fmtDate, clear } from '../dom.js';
 import { icon } from '../icons.js';
 import { TIME_CONTROLS, BOT_LEVELS, botName } from '../config.js';
 import { getPrefs, setPref } from '../prefs.js';
-import { isProvisional, ratingsOf } from '../rating.js';
+import { isProvisional, ratingsOf, previewChange, signed, BOT_RD } from '../rating.js';
 import { session } from '../store/index.js';
 import { Game } from '../game.js';
 import { startGame, activeGame } from './game-view.js';
@@ -42,10 +42,20 @@ export async function homeView(main, _p, ctx) {
             img ? h('img', { src: pieceUrl({ color: img[0], type: img[1].toLowerCase() }, { small: true }), alt: '' }) : h('span.split-king', { 'aria-hidden': 'true' }, h('img.l', { src: pieceUrl({ color: 'w', type: 'k' }, { small: true }), alt: '' }), h('img.r', { src: pieceUrl({ color: 'b', type: 'k' }, { small: true }), alt: '' })), label)))),
       isBot && h('label.switch', h('span', h('b', 'Rated game'), h('small', setup.rated ? 'Your rating changes. No takebacks, hints or evaluation bar.' : 'Practice freely with takebacks, hints and the evaluation bar.')),
         h('input.toggle', { type: 'checkbox', checked: setup.rated, on: { change: e => { setup.rated = e.target.checked; renderForm(); } } })),
+      isBot && setup.rated && h('div.rate-preview', { 'aria-live': 'polite' }),
       h('div', { style: { marginTop: '20px' } }, h('button.btn.primary.big', { on: { click: start } }, icon('play'), 'Start game')),
     ].filter(Boolean));
+    renderPreview();
+  }
+  // chess.com-style "what's at stake" line under the Rated switch
+  function renderPreview() {
+    const el = form.querySelector('.rate-preview'); if (!el) return;
+    const me = ratingsOf(P).computer, pv = previewChange(me, setup.botElo, BOT_RD);
+    clear(el).append(h('span.muted', `Your 🤖 rating ${me.rating} vs ${botName(setup.botElo)} (${setup.botElo}):`),
+      h('span.pv.win', 'Win ', h('b', signed(pv.win))), h('span.pv.draw', 'Draw ', h('b', signed(pv.draw))), h('span.pv.loss', 'Loss ', h('b', signed(pv.loss))));
   }
   function renderFormLight() {
+    renderPreview();
     form.querySelector('.bot-pick .elo').textContent = setup.botElo;
     form.querySelector('.bot-pick .nm').textContent = botName(setup.botElo);
   }
@@ -95,6 +105,6 @@ export async function homeView(main, _p, ctx) {
   }).catch(e => { recent.lastChild.textContent = 'Could not load games: ' + e.message; });
 
   main.append(h('div.home',
-    h('section.home-hero', h('div.hero-row', h('img.hero-king', { src: '/pieces3d/wood/wK.webp', alt: '' }), h('h1', `Ready to play, ${P.name}?`)), h('p.hero-text', 'Challenge the computer at your selected Rating, play with a friend locally, or compete against an online player.'), musicCard(), h('div.card', form)),
+    h('section.home-hero', h('div.hero-row', h('img.hero-king', { src: '/pieces3d/wood/wK.webp', alt: '' }), h('h1', `Ready to play, ${P.name}?`)), h('p.hero-text', 'Challenge the computer at your selected level, play with a friend locally, or compete against an online player.'), musicCard(), h('div.card', form)),
     side));
 }

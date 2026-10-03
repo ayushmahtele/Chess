@@ -10,7 +10,11 @@ export const LEVELS = {
 };
 
 export const NEW_RD = 350;   // maximum uncertainty
-export const START_RD = 250; // new accounts (self-chosen level)
+export const START_RD = 200; // new accounts, every rating (the player already told us their level, so we are fairly, not totally, unsure)
+export const START_RD_ONLINE = START_RD;
+export const MAX_CHANGE = 150;     // one game can move a rating by at most this much (lucky disconnects, friends throwing games, mislabelled bots)
+export const MAX_ONLINE_CHANGE = MAX_CHANGE;
+export const BOT_RD = 60;          // the computer's level counts as a fairly certain rating
 export const NEW_VOL = 0.06;
 const TAU = 0.5;
 const SCALE = 173.7178;
@@ -94,8 +98,8 @@ export function ratingsOf(profile) {
   const r = { ...(profile?.ratings || {}) };
   if (!r.computer) r.computer = { rating: profile?.rating ?? 1200, rd: profile?.rd ?? START_RD, vol: profile?.vol ?? NEW_VOL,
     peak: profile?.peak ?? profile?.rating ?? 1200, history: profile?.ratingHistory || [], lastPlayed: profile?.lastPlayed || null };
-  const base = profile?.online || { rating: profile?.startRating ?? profile?.rating ?? 1200, rd: START_RD, vol: NEW_VOL };
-  for (const c of ONLINE_CATS) if (!r[c]) r[c] = { rating: base.rating, rd: base.rd ?? START_RD, vol: base.vol ?? NEW_VOL,
+  const base = profile?.online || { rating: profile?.startRating ?? profile?.rating ?? 1200, rd: START_RD_ONLINE, vol: NEW_VOL };
+  for (const c of ONLINE_CATS) if (!r[c]) r[c] = { rating: base.rating, rd: base.rd ?? START_RD_ONLINE, vol: base.vol ?? NEW_VOL,
     peak: base.rating, history: [{ t: profile?.createdAt || Date.now(), r: base.rating }], lastPlayed: base.lastPlayed || null };
   return r;
 }
@@ -110,9 +114,10 @@ export function overallOf(profile) {
   const r = ratingsOf(profile), n = ONLINE_CATS.length;
   return { rating: Math.round(ONLINE_CATS.reduce((s, c) => s + r[c].rating, 0) / n), rd: ONLINE_CATS.reduce((s, c) => s + r[c].rd, 0) / n };
 }
-/** Apply one rated result to a category entry; returns the updated entry. */
-export function rateGame(entry, oppRating, oppRd, score) {
+/** Apply one rated result to a category entry; returns the updated entry. maxChange limits the jump (online games). */
+export function rateGame(entry, oppRating, oppRd, score, maxChange = Infinity) {
   const next = glicko2({ rating: entry.rating, rd: inflateRd(entry.rd, entry.lastPlayed), vol: entry.vol }, { rating: oppRating, rd: oppRd }, score);
+  next.rating = Math.max(entry.rating - maxChange, Math.min(entry.rating + maxChange, next.rating));
   return { ...entry, ...next, peak: Math.max(entry.peak || 0, next.rating), lastPlayed: Date.now(),
     history: [...(entry.history || []), { t: Date.now(), r: next.rating }].slice(-300) };
 }
@@ -125,3 +130,13 @@ export function countResult(entry, outcome) {
   return entry;
 }
 export const plural = (n, word) => `${n} ${n === 1 ? word : word + 's'}`;
+
+/**
+ * What one game would do to a rating, shown before the game like chess.com: { win: +12, draw: 0, loss: -12 }.
+ * Uses exactly the same maths as the real update.
+ */
+export function previewChange(entry, oppRating, oppRd) {
+  const d = score => rateGame(entry, oppRating, oppRd, score, MAX_CHANGE).rating - entry.rating;
+  return { win: d(1), draw: d(0.5), loss: d(0) };
+}
+export const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '±') + Math.abs(n);

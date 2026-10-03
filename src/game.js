@@ -2,7 +2,7 @@
 import { Chess } from 'chess.js';
 import { think, resetEngine } from './engine-client.js';
 import { sfx } from './audio/sfx.js';
-import { ratingsOf, rateGame, countResult } from './rating.js';
+import { ratingsOf, rateGame, countResult, BOT_RD, MAX_CHANGE } from './rating.js';
 import { session } from './store/index.js';
 import { botName } from './config.js';
 
@@ -228,7 +228,7 @@ export class Game {
     if (rated) {
       const score = r.outcome === 'win' ? 1 : r.outcome === 'draw' ? 0.5 : 0;
       const ratings = ratingsOf(profile);
-      const next = rateGame(ratings.computer, this.cfg.botElo, 60, score);
+      const next = rateGame(ratings.computer, this.cfg.botElo, BOT_RD, score, MAX_CHANGE);
       r.ratingBefore = ratings.computer.rating; r.ratingAfter = next.rating;
       ratings.computer = next; profile.ratings = ratings;
       profile.rating = next.rating; profile.rd = next.rd; profile.vol = next.vol;   // older fields kept in step

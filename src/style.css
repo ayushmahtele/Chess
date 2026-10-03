@@ -907,3 +907,13 @@ div.level:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .sp-status.warn .dot{background:var(--gold)}
 .sp-status .linkish{flex:none;font-size:.8rem;padding:2px 0}
 .sp-login.done{background:transparent;color:#1ed760;border-color:#1ed760}
+.banner.note{background:var(--surface-2);color:var(--muted);font-weight:500;font-size:.84rem}
+/* "what's at stake" line before a rated game (like chess.com) */
+.rate-preview{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:10px;font-size:.86rem}
+.banner.rate-preview{margin-top:0}
+.rate-preview > span.muted{flex-basis:100%;min-width:0}
+.banner.rate-preview > span{flex:none;min-width:0}
+.banner.rate-preview > span.muted{flex-basis:auto}
+.rate-preview .pv{display:inline-flex;gap:4px;color:var(--muted)}
+.rate-preview .pv b{font-variant-numeric:tabular-nums}
+.rate-preview .win b{color:var(--win)} .rate-preview .loss b{color:var(--red)} .rate-preview .draw b{color:var(--text)}

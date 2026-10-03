@@ -2,7 +2,7 @@
 // One document per game in the "onlineGames" collection.
 import { Chess } from 'chess.js';
 import { session, usernameOwner, cleanUsername } from './store/index.js';
-import { ratingsOf, rateGame, categoryOfTc } from './rating.js';
+import { ratingsOf, rateGame, categoryOfTc, MAX_ONLINE_CHANGE } from './rating.js';
 import { avatarSrc } from './avatar.js';
 
 export const COLL = 'onlineGames';
@@ -71,6 +71,8 @@ export async function joinGame(id, profile) {
   localStorage.setItem(LAST_KEY, id);
 }
 
+/** Allowed rating difference for quick match after someone has waited `ms`: ±150 at first, +100 every 10 s, anyone after 1 minute. */
+export const ratingWindow = ms => (ms >= 60000 ? Infinity : 150 + Math.floor(ms / 10000) * 100);
 /** Quick match: join someone who is waiting with the same settings, or wait for an opponent. */
 export async function quickMatch(profile, { tc, rated }) {
   const id = await findOpenGame(profile, { tc, rated });
@@ -79,8 +81,13 @@ export async function quickMatch(profile, { tc, rated }) {
 export async function findOpenGame(profile, { tc, rated }, olderThan = Infinity) {
   const d = db(), u = uid();
   const open = await d.list(COLL, { where: [['status', '==', 'waiting'], ['public', '==', true], ['tcId', '==', tc.id], ['rated', '==', rated]], limit: 25 });
-  const fresh = open.filter(g => g.createdBy !== u && (g.lastSeen?.[g.createdBy] || 0) > d.now() - 45000 && (g.createdAt || 0) < olderThan)
-    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  // Pair players of similar strength (like chess.com): start within ±150 and widen the longer someone waits,
+  // so nobody waits forever. Casual games pair anyone.
+  const mine = onlineRating(profile, tc.id).rating, now = d.now();
+  const gap = g => Math.abs((g.p?.[g.createdBy]?.rating ?? mine) - mine);
+  const fits = g => !rated || gap(g) <= ratingWindow(now - (g.createdAt || now));
+  const fresh = open.filter(g => g.createdBy !== u && (g.lastSeen?.[g.createdBy] || 0) > now - 45000 && (g.createdAt || 0) < olderThan && fits(g))
+    .sort((a, b) => gap(a) - gap(b) || (a.createdAt || 0) - (b.createdAt || 0));
   for (const g of fresh) { try { await joinGame(g.id, profile); return g.id; } catch { /* taken by someone else */ } }
   return null;
 }
@@ -161,9 +168,14 @@ export const claimTimeout = id => finishIf(id, g => {
 });
 /** Nobody made their first move within a minute: abort. */
 export const abortIfNoFirstMove = id => finishIf(id, g => g.moves.length < 2 && db().now() - (g.lastMoveAt || g.startedAt || 0) > 60000 ? { result: '*', reason: 'first move not played' } : null);
-/** Opponent closed the game for over a minute. */
+/**
+ * How long the opponent must be gone before you can claim the win. Phones pause a page as soon as you switch apps,
+ * so this is generous: timed games 2 minutes (their clock keeps running meanwhile), no-clock games 4 minutes.
+ */
+export const leaveGrace = g => (g.clock ? 120000 : 240000);
+/** Opponent has been gone longer than leaveGrace(g). */
 export const claimAbandoned = id => finishIf(id, g => {
-  const opp = opponentOf(g); if ((g.lastSeen?.[opp] || 0) > db().now() - 60000) return null;
+  const opp = opponentOf(g); if ((g.lastSeen?.[opp] || 0) > db().now() - leaveGrace(g)) return null;
   if (g.moves.length < 2) return { result: '*', reason: 'aborted' };
   return { result: colorOf(g) === 'w' ? '1-0' : '0-1', reason: 'opponent left' };
 });
@@ -204,7 +216,7 @@ export async function saveFinished(g) {
     if (rated) {
       const score = outcome === 'win' ? 1 : outcome === 'draw' ? 0.5 : 0;
       ratingBefore = o.rating;
-      o = rateGame(o, g.p[opp].rating, g.p[opp].rd || 200, score);
+      o = rateGame(o, g.p[opp].rating, g.p[opp].rd || 200, score, MAX_ONLINE_CHANGE);
       ratingAfter = o.rating;
     }
     if (outcome !== 'aborted') {

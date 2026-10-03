@@ -5,7 +5,7 @@ import { getPrefs } from '../prefs.js';
 import { sfx } from '../audio/sfx.js';
 import { TIME_CONTROLS } from '../config.js';
 import { session, friendlyError } from '../store/index.js';
-import { isProvisional } from '../rating.js';
+import { isProvisional, previewChange, signed } from '../rating.js';
 import * as O from '../online.js';
 
 const VALUES = { p: 1, n: 3, b: 3, r: 5, q: 9 };
@@ -140,12 +140,23 @@ export async function onlineGameView(main, [id], ctx) {
       if (g.drawOffer && g.drawOffer !== user.uid) banner.append(h('div.banner', h('span', `@${g.p[g.drawOffer]?.username} offers a draw.`),
         h('button.btn', { on: { click: () => O.declineDraw(id) } }, 'Decline'), h('button.btn.primary', { on: { click: () => O.acceptDraw(id) } }, 'Accept')));
       if (g.drawOffer === user.uid) banner.append(h('div.banner', h('span', 'You offered a draw. Waiting for an answer…')));
-      const opp = oppId(), seen = g.lastSeen?.[opp] || 0;
-      if (seen < db.now() - 30000) {
-        const canClaim = seen < db.now() - 60000;
-        banner.append(h('div.banner.warn', h('span', canClaim ? `@${g.p[opp]?.username} left the game.` : `@${g.p[opp]?.username} seems to be disconnected…`),
+      const opp = oppId(), seen = g.lastSeen?.[opp] || 0, gone = db.now() - seen, grace = O.leaveGrace(g);
+      if (gone > 30000) {
+        const canClaim = gone >= grace, left = Math.ceil((grace - gone) / 1000);
+        const wait = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+        banner.append(h('div.banner.warn', h('span', canClaim ? `@${g.p[opp]?.username} left the game.`
+            : `@${g.p[opp]?.username} seems to be disconnected. ` + (g.moves.length < 2 ? 'The game is cancelled if no first move is played.' : `You can claim the win in ${wait}` + (g.clock ? ' (or when their clock runs out).' : '.'))),
           canClaim && h('button.btn.primary', { on: { click: () => O.claimAbandoned(id) } }, g.moves.length < 2 ? 'Abort game' : 'Claim the win')));
       }
+      // what's at stake, like chess.com shows before the game
+      if (g.rated && g.moves.length < 2 && g.p[opp]) {
+        const pv = previewChange(O.onlineRating(P, g.tcId), g.p[opp].rating, g.p[opp].rd || 200);
+        banner.append(h('div.banner.note.rate-preview', h('span.muted', `Rated vs ${g.p[opp].rating}:`),
+          h('span.pv.win', 'Win ', h('b', signed(pv.win))), h('span.pv.draw', 'Draw ', h('b', signed(pv.draw))), h('span.pv.loss', 'Loss ', h('b', signed(pv.loss)))));
+      }
+      // phones pause this page as soon as you switch apps: say so before the game gets going
+      if (g.moves.length < 4 && matchMedia('(pointer: coarse)').matches) banner.append(h('div.banner.note', h('span',
+        `Stay on this page during the game. If you leave for more than ${O.leaveGrace(g) / 60000} minutes, your opponent can claim the win.`)));
     }
     if (g.status === 'over' && g.rematch?.id && g.rematch.by !== user.uid) banner.append(h('div.banner', h('span', `@${g.p[g.rematch.by]?.username} wants a rematch.`),
       h('button.btn.primary', { on: { click: async () => { try { await O.joinGame(g.rematch.id, P); ctx.go('/play/' + g.rematch.id); } catch (e) { toast(friendlyError(e), 'error'); } } } }, 'Accept rematch')));
@@ -292,7 +303,27 @@ export async function onlineGameView(main, [id], ctx) {
       try { const other = await O.findOpenGame(P, { tc: g.tc, rated: g.rated }, g.createdAt || Infinity); if (other && alive) { await O.cancelWaiting(id); ctx.go('/play/' + other); } } catch {}
     }
   }, 200);
-  const slow = setInterval(() => { if (g?.status === 'active') renderBanners(); }, 5000);
+  let slowN = 0;
+  const slow = setInterval(() => {
+    if (g?.status !== 'active') return;
+    const away = db.now() - (g.lastSeen?.[oppId()] || 0) > 25000;
+    if (away || ++slowN % 5 === 0) renderBanners();               // every second only while the countdown shows
+  }, 1000);
+  // Leaving the page mid-game: warn first on computers; on return, say how long you were gone.
+  let hiddenAt = 0;
+  const onVis = () => {
+    if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+    beat();                                                         // tell the opponent you're back straight away
+    const away = hiddenAt ? Date.now() - hiddenAt : 0; hiddenAt = 0;
+    if (g?.status === 'active' && away > 20000) {
+      const s2 = Math.round(away / 1000), grace = O.leaveGrace(g) / 1000;
+      toast(away / 1000 >= grace ? `You were away for ${s2} seconds. Your opponent was allowed to claim the win.`
+        : `You were away for ${s2} seconds. After ${grace / 60} minutes away, your opponent can claim the win.`, away / 1000 >= grace ? 'error' : undefined);
+    }
+  };
+  const onUnload = e => { if (g?.status === 'active') { e.preventDefault(); e.returnValue = ''; } };
+  document.addEventListener('visibilitychange', onVis);
+  window.addEventListener('beforeunload', onUnload);
   const onKey = e => {
     if (e.target.closest('input,textarea,select') || document.querySelector('.modal-wrap')) return;
     if (e.key === 'ArrowLeft') { step(-1); e.preventDefault(); } else if (e.key === 'ArrowRight') { step(1); e.preventDefault(); }
@@ -301,6 +332,7 @@ export async function onlineGameView(main, [id], ctx) {
 
   return () => {
     alive = false; off(); clearInterval(hb); clearInterval(tick); clearInterval(slow); document.removeEventListener('keydown', onKey);
+    document.removeEventListener('visibilitychange', onVis); window.removeEventListener('beforeunload', onUnload);
     if (g && g.status === 'waiting' && g.public && g.createdBy === user.uid) O.cancelWaiting(id);
   };
 }
