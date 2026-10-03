@@ -171,7 +171,7 @@ function spotifySection() {
       h('ol',
         h('li', 'Tap ', h('b', 'Log in for full songs'), '. Spotify\'s login page opens in a new tab of this browser. Log in, then come back to this tab. The player reloads by itself and the status above changes to ', h('b', 'Logged in to Spotify'), ' once full songs play.'),
         h('li', 'Still preview after logging in? Your browser is blocking Spotify inside other websites (Incognito always does). In Chrome tap the icon left of the web address → ', h('b', 'Cookies and site data'), ' → allow ', h('b', 'third-party cookies'), ' for this site, then reload.'),
-        h('li', 'Ads come from Spotify itself: free Spotify accounts hear ads, Spotify Premium removes them.'),
+        h('li', 'If ads appear, they come from Spotify itself. Free Spotify accounts include ads, while Spotify Premium removes them.'),
         h('li', 'In mobile, use the ', h('b', 'open in spotify'), ' button inside the player on phones. It belongs to Spotify and opens the Spotify app instead of this browser. Full songs play there, and you can use the phone volume buttons to control the music volume.'))),
     !list.length && h('p.note', 'Add as many playlists, albums or songs as you like. They are saved to your account, so they are here every time, on every device you sign in.'));
 }
