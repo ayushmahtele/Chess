@@ -142,13 +142,14 @@ class MusicPlayer {
   constructor() {
     this.volume = 0.5; this.playing = false; this.current = 'lofi';
     this.shuffle = false; this.repeat = 'all'; // 'all' | 'one'
+    this.source = 'local';                     // what the panel's controls drive: 'local' (built-in + your songs) or 'spotify'
     this.userSongs = []; this.listeners = new Set(); this.timeListeners = new Set();
     this._timer = null; this._audio = null; this._url = null;
     try { Object.assign(this, JSON.parse(localStorage.getItem('chessarena:music') || '{}')); } catch {}
     this.playing = false;
     this.loadSongs();
   }
-  persist() { try { localStorage.setItem('chessarena:music', JSON.stringify({ volume: this.volume, current: this.current, shuffle: this.shuffle, repeat: this.repeat })); } catch {} }
+  persist() { try { localStorage.setItem('chessarena:music', JSON.stringify({ volume: this.volume, current: this.current, shuffle: this.shuffle, repeat: this.repeat, source: this.source })); } catch {} }
   on(cb) { this.listeners.add(cb); return () => this.listeners.delete(cb); }
   emit() { this.persist(); this.listeners.forEach(f => f(this)); }
 
@@ -186,8 +187,9 @@ class MusicPlayer {
     if (this._audio) { this._audio.pause(); this.playing = false; this._session(); this.emit(); return; }   // your own song: keep the position
     this.stop(); this.emit();
   }
+  setSource(src) { if (this.source !== src) { this.source = src; this.emit(); } }
   async resume() {
-    spotify.pause();
+    spotify.pause(); this.source = 'local';
     if (this._audio && this.currentTrack.id === this.current && !this.currentTrack.builtin) {
       try { await this._audio.play(); this.playing = true; } catch (e) { console.warn(e); }
       this._session(); this.emit(); return;
@@ -203,7 +205,7 @@ class MusicPlayer {
     this._time();
   }
   async play(id = this.current) {
-    spotify.pause();
+    spotify.pause(); this.source = 'local';
     if (id === this.current && this._audio && !this.playing) return this.resume();
     this.stop();
     this.current = id; this.playing = true;
@@ -274,4 +276,4 @@ class MusicPlayer {
 }
 
 export const music = new MusicPlayer();
-spotify.onPlay = () => { if (music.playing) music.pause(); };
+spotify.onPlay = () => { music.source = 'spotify'; if (music.playing) music.pause(); else music.emit(); };

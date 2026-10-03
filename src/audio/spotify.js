@@ -13,11 +13,20 @@ export function parseSpotify(text) {
 }
 export const spotifyUrl = l => `https://open.spotify.com/${l.type}/${l.id}`;
 
+const MODE_KEY = 'chessthrone:spotify-mode', LOGIN_KEY = 'chessthrone:spotify-login-tried';
+const PREVIEW_MAX_MS = 31000;          // Spotify previews are 30 seconds long
 const LABEL = { track: 'Song', album: 'Album', playlist: 'Playlist', artist: 'Artist', episode: 'Episode', show: 'Podcast' };
 const MAX = 60;
 // list: saved Spotify links [{ type, id, name, thumb }]; current: id of the one in the player
-const state = { owner: 'guest', list: [], current: null, playing: false, controller: null, listeners: new Set() };
+const state = { owner: 'guest', list: [], current: null, playing: false, controller: null, listeners: new Set(),
+  pos: 0, dur: 0, timeListeners: new Set(), autoplay: false,
+  // 'full' = full songs (logged in to Spotify in this browser), 'preview' = 30-second previews, 'unknown' = not played yet
+  mode: readMode(), loginTried: readNum(LOGIN_KEY) };
 const key = () => 'chessarena:spotify:' + state.owner;
+function readMode() { try { return localStorage.getItem(MODE_KEY) || 'unknown'; } catch { return 'unknown'; } }
+function readNum(k) { try { return +localStorage.getItem(k) || 0; } catch { return 0; } }
+const emitTime = () => state.timeListeners.forEach(f => f({ cur: state.pos / 1000, dur: state.dur / 1000 }));
+function setMode(m) { if (m === state.mode) return; state.mode = m; try { localStorage.setItem(MODE_KEY, m); } catch {} emit(); }
 const emit = () => state.listeners.forEach(f => f(state));
 /** Accepts the old single-link format { type, id } or the list format { list, current }. */
 function normalise(d) {
@@ -84,15 +93,53 @@ export const spotify = {
   },
   set(link) { this.add(link); },          // older name
   pause() { try { state.controller?.pause?.(); } catch {} },
+  get mode() { return state.mode; },
+  get loginTried() { return state.loginTried; },
+  get ready() { return !!state.controller; },
+  get position() { return { cur: state.pos / 1000, dur: state.dur / 1000 }; },
+  onTime(f) { state.timeListeners.add(f); return () => state.timeListeners.delete(f); },
+  /** Play / pause from the music panel's own buttons. */
+  toggle() { try { state.controller?.togglePlay?.(); } catch {} },
+  seek(sec) { try { state.controller?.seek?.(Math.max(0, sec)); state.pos = Math.max(0, sec) * 1000; emitTime(); } catch {} },
+  skip(delta) { this.seek(state.pos / 1000 + delta); },
+  /** Next / previous saved Spotify link (the player itself skips songs inside a playlist). */
+  step(dir) {
+    if (state.list.length < 2) { this.seek(0); return; }
+    const i = state.list.findIndex(x => x.id === state.current);
+    state.current = state.list[(i + dir + state.list.length) % state.list.length].id;
+    persist(); state.autoplay = true; load(); emit();
+  },
+  /** The person went to Spotify's login page: remember it, and reload the player when they come back. */
+  loginStarted() {
+    state.loginTried = Date.now();
+    try { localStorage.setItem(LOGIN_KEY, String(state.loginTried)); } catch {}
+    awaitingReturn = true; emit();
+  },
+  /** Rebuild the player so it picks up a new Spotify login, then check again. */
+  recheck() { setMode('unknown'); rebuild(); },
   attach(slot) { slotEl = slot; place(); },
   detach() { slotEl = null; place(); },
 };
 // switch the existing player to the current item (smooth), or build a new one
 function load() {
   const it = spotify.link;
-  if (it && state.controller?.loadUri) { try { state.controller.loadUri(`spotify:${it.type}:${it.id}`); state.playing = false; return; } catch {} }
+  state.pos = 0; state.dur = 0; emitTime();
+  if (it && state.controller?.loadUri) {
+    try {
+      state.controller.loadUri(`spotify:${it.type}:${it.id}`); state.playing = false;
+      if (state.autoplay) { state.autoplay = false; setTimeout(() => { try { state.controller?.play(); } catch {} }, 600); }
+      return;
+    } catch {}
+  }
   rebuild();
 }
+// Coming back from Spotify's login page: reload the player so it can use the new login.
+let awaitingReturn = false;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible' || !awaitingReturn) return;
+  awaitingReturn = false;
+  if (spotify.link) spotify.recheck();
+});
 
 /* ---------------- the player element ---------------- */
 let host = null, slotEl = null, apiPromise = null, raf = 0;
@@ -121,11 +168,17 @@ function rebuild() {
     if (!host || !host.contains(target)) return;
     api.createController(target, { uri: `spotify:${type}:${id}`, width: '100%', height: 152 }, ctl => {
       state.controller = ctl;
+      ctl.addListener('ready', () => { if (state.autoplay) { state.autoplay = false; try { ctl.play(); } catch {} } });
       ctl.addListener('playback_update', e => {
-        const playing = !e.data?.isPaused && !e.data?.isBuffering;
+        const d = e.data || {};
+        const playing = !d.isPaused && !d.isBuffering;
+        state.pos = d.position || 0; state.dur = d.duration || 0; emitTime();
+        // Full songs only play when this browser is logged in to Spotify; otherwise every song is a 30-second preview.
+        if (playing && state.dur > 0 && state.pos > 500) setMode(state.dur > PREVIEW_MAX_MS ? 'full' : 'preview');
         if (playing && !state.playing) spotify.onPlay?.();
         if (playing !== state.playing) { state.playing = playing; emit(); }
       });
+      emit();
     });
   }).catch(() => {
     if (!host) return;

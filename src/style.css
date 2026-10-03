@@ -886,3 +886,24 @@ div.level:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 /* tablets: keep the logo on one line next to the menu */
 .logo-name,.logo-tag{white-space:nowrap}
 @media (max-width:1000px){ .logo-tag{display:none} }
+/* one set of controls for every source */
+.now .disc.cover{object-fit:cover;border-radius:10px;background:var(--surface)}
+.now.playing .disc.cover{animation:none}
+.now small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.now.sp{box-shadow:inset 3px 0 0 #1ed760}
+.transport .icon-btn:disabled,.vol input:disabled{opacity:.35;cursor:not-allowed}
+.mc-play:disabled{opacity:.5;cursor:default}
+/* Spotify comes first, right under the controls */
+.drawer .sp-section{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.drawer .sp-section + .sub{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+/* login status */
+.sp-status{display:flex;align-items:flex-start;gap:10px;margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--surface-2);font-size:.82rem}
+.sp-status .dot{width:10px;height:10px;border-radius:50%;background:var(--muted);flex:none;margin-top:4px}
+.sp-status > span:nth-child(2){flex:1;min-width:0;display:grid;gap:1px}
+.sp-status small{color:var(--muted);font-size:.78rem;line-height:1.4}
+.sp-status.ok{background:color-mix(in srgb,#1ed760 12%,var(--surface-2))}
+.sp-status.ok .dot{background:#1ed760}
+.sp-status.warn{background:color-mix(in srgb,var(--gold) 12%,var(--surface-2))}
+.sp-status.warn .dot{background:var(--gold)}
+.sp-status .linkish{flex:none;font-size:.8rem;padding:2px 0}
+.sp-login.done{background:transparent;color:#1ed760;border-color:#1ed760}
