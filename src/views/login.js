@@ -129,7 +129,7 @@ export async function loginView(main, _p, ctx) {
   const stage = h('div.auth-stage', { role: 'img', 'aria-label': '3D chess board showing the finish of The Immortal Game, Anderssen vs Kieseritzky, London 1851' },
     h('div.stage-hint', matchMedia('(pointer: coarse)').matches ? 'Drag to rotate · pinch to zoom' : 'Drag to rotate · scroll to zoom'));
   main.append(h('div.auth-page', stage,
-    h('div.auth', h('h1', `Sign in to ${APP_NAME}`), h('p.muted', 'Keep your rating and games on every device, and play with friends online.'), card,
+    h('div.auth', h('h1', `Sign in to ${APP_NAME}`), h('p.muted', 'Access your rating and games on all your devices, and play with friends online.'), card,
       h('p.muted', { style: { textAlign: 'center' } }, h('a', { href: '#/' }, 'Keep playing as a guest')))));
 
   // 3D board (loaded only on this page)

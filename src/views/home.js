@@ -8,6 +8,7 @@ import { Game } from '../game.js';
 import { startGame, activeGame } from './game-view.js';
 import { gameRow } from './history.js';
 import { pieceUrl } from '../board.js';
+import { musicCard } from './music-panel.js';
 
 export async function homeView(main, _p, ctx) {
   const P = ctx.profile;
@@ -25,7 +26,7 @@ export async function homeView(main, _p, ctx) {
     const isBot = setup.mode === 'bot';
     form.append(...[
       h('div.mode-tabs',
-        modeBtn('bot', '🤖', 'Play the computer', 'Rated or casual'),
+        modeBtn('bot', '🤖', 'Play v/s Computer', 'Rated or casual'),
         modeBtn('local', '👥', 'Two players', 'Pass and play on one device'),
         h('a.mode', { href: '#/online' }, h('span.mi', '🌐'), h('span', h('b', 'Play online'), h('span', 'Friends or quick match')))),
       h('div.field', h('span.lbl', 'Time control'),
@@ -78,7 +79,7 @@ export async function homeView(main, _p, ctx) {
         h('button.btn', { on: { click: () => { Game.discardSaved(); ctx.go('/'); } } }, 'Discard'))));
   }
   const R = ratingsOf(P);
-  const tile = id => { const c = { bullet: '⚡ Bullet', blitz: '🔥 Blitz', rapid: '⏱ Rapid', noclock: '♾ No clock', computer: '🤖 vs Computer' }[id];
+  const tile = id => { const c = { bullet: '⚡ Bullet', blitz: '🔥 Blitz', rapid: '⏱ Rapid', noclock: '♾ No clock', computer: '🤖 Computer' }[id];
     return h('a.rtile', { href: '#/profile' }, h('span.rl', c), h('b', R[id].rating, isProvisional(R[id].rd) ? h('span.q', '?') : '')); };
   side.append(h('div.card',
     h('h2', 'Your ratings'),
@@ -94,6 +95,6 @@ export async function homeView(main, _p, ctx) {
   }).catch(e => { recent.lastChild.textContent = 'Could not load games: ' + e.message; });
 
   main.append(h('div.home',
-    h('section.home-hero', h('div.hero-row', h('img.hero-king', { src: '/pieces3d/wood/wK.webp', alt: '' }), h('h1', `Ready to play, ${P.name}?`)), h('p.music-hl', '♫ ', h('b', 'Enjoy every game with ad-free music'), ' — built-in tracks or your own songs, in the 🎵 menu.'), h('p', 'Challenge the computer at your level, play a friend on this device, or play with players online.'), h('div.card', form)),
+    h('section.home-hero', h('div.hero-row', h('img.hero-king', { src: '/pieces3d/wood/wK.webp', alt: '' }), h('h1', `Ready to play, ${P.name}?`)), h('div.hero-sub', h('p', 'Challenge the computer at your selected level, play with a friend locally, or compete against an online player.'), musicCard()), h('div.card', form)),
     side));
 }

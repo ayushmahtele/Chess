@@ -4,6 +4,7 @@ import { LEVELS, START_RD, NEW_VOL, isProvisional, startingRatings, ratingsOf } 
 import { session, cloudEnabled, createCloudProfile, usernameOwner, USERNAME_RE, cleanUsername, friendlyError } from '../store/index.js';
 import { localStore } from '../store/local.js';
 import { APP_NAME } from '../config.js';
+import { musicCard } from './music-panel.js';
 
 const PIECES = { beginner: 'wP', intermediate: 'wN', pro: 'wQ' };
 
@@ -72,8 +73,8 @@ export async function onboardingView(main, _p, ctx) {
   main.append(h('section.onb',
     h('h1', `Welcome to ${APP_NAME}`),
     h('p.muted', hasGuest ? 'You already played here as a guest. Bring that progress into your account, or start fresh.'
-      : 'Pick the level that fits you. It sets your starting rating. Your first couple of games move your rating a lot, so a Pro who loses early drops fast, and it settles as you play more.'),
-    h('p.music-hl', '♫ ', h('b', 'Enjoy every game with ad-free music'), ' — built-in tracks or your own songs, in the 🎵 menu.'),
+      : 'Pick the level that fits you. It sets your starting rating. Your first couple of games move your rating a lot. A pro who loses early will see their rating drop quickly.'),
+    musicCard(),
     levelBox,
     user && h('div.field', h('label', { for: 'un' }, 'Username'), userIn, avail, !lockedUser && h('small.muted', 'Friends use this to challenge you online. It can\'t be changed later.')),
     h('div.field', h('label', { for: 'nm' }, 'Display name'), nameIn),

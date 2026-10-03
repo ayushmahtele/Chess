@@ -13,6 +13,9 @@ export function musicButton() {
   return btn;
 }
 
+/** Open the music panel from anywhere (e.g. the Ad-free music card). */
+export function openMusic() { if (!drawer) toggle(); }
+
 function toggle() {
   if (drawer) { close(); return; }
   drawer = h('div.drawer', { role: 'dialog', 'aria-label': 'Music and sound' });
@@ -26,6 +29,23 @@ function toggle() {
   document.addEventListener('keydown', esc);
 }
 export function closeMusic() { close(); }
+
+/** Small "ad-free music" card with its own Play / Pause button. */
+export function musicCard() {
+  const btn = h('button.mc-play', { on: { click: () => music.toggle() } });
+  const sub = h('span.mc-sub');
+  const card = h('div.music-card', h('span.mc-icon', { 'aria-hidden': 'true' }, icon('music')),
+    h('button.mc-text', { type: 'button', title: 'Open the music panel', on: { click: openMusic } }, h('b', 'Ad-free music'), sub), btn);
+  const sync = () => {
+    if (sync.ran && !card.isConnected) { off(); return; }   // card left the page: stop listening
+    sync.ran = true;
+    btn.innerHTML = ''; btn.append(icon(music.playing ? 'pause' : 'play'), music.playing ? 'Pause' : 'Play');
+    btn.setAttribute('aria-label', music.playing ? 'Pause music' : 'Play music');
+    sub.textContent = music.playing ? '♪ ' + music.currentTrack.name : 'Built-in tracks or your songs';
+  };
+  const off = music.on(sync); sync();
+  return card;
+}
 function close() { if (!drawer) return; drawer._off(); drawer.remove(); drawer = null; document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', esc); }
 const outside = e => { if (drawer && !drawer.contains(e.target) && !e.target.closest('.sp-host') && !e.target.closest('.icon-btn[title="Music and sound"]')) close(); };
 const esc = e => { if (e.key === 'Escape') close(); };

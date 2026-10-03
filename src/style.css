@@ -775,7 +775,26 @@ div.level:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .split-king img{position:absolute;inset:0;width:100%;height:100%}
 .split-king .l{clip-path:inset(0 50% 0 0)}
 .split-king .r{clip-path:inset(0 0 0 50%)}
-/* ad-free music highlight */
-.music-hl{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:baseline;margin:6px 0 16px;padding:8px 14px;border-radius:999px;
-  background:color-mix(in srgb,var(--gold) 14%,transparent);border:1px solid color-mix(in srgb,var(--gold) 40%,transparent);color:var(--text);font-size:.92rem}
-.music-hl b{color:var(--gold)}
+/* "Ad-free music" card next to the intro line */
+.hero-sub{display:flex;gap:16px 20px;align-items:center;flex-wrap:wrap;margin:6px 0 20px}
+.hero-sub > p{flex:1 1 260px;margin:0!important;color:var(--muted)}
+.music-card{display:flex;align-items:center;gap:12px;padding:10px 10px 10px 12px;border-radius:14px;flex:0 1 auto;width:max-content;max-width:100%;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--gold) 16%,var(--surface)),var(--surface));border:1px solid color-mix(in srgb,var(--gold) 35%,var(--line))}
+.mc-icon{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:none;background:var(--gold);color:var(--gold-ink)}
+.mc-icon svg{width:20px;height:20px}
+.mc-text{display:grid;line-height:1.25;min-width:0;border:0;background:transparent;padding:0;text-align:left;color:var(--text);cursor:pointer}
+.mc-text:hover b{text-decoration:underline}
+.mc-text b{font-size:.92rem}
+.mc-sub{font-size:.78rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:210px}
+.mc-play{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:999px;border:0;background:var(--gold);color:var(--gold-ink);font-weight:800;font-size:.85rem;flex:none}
+.mc-play svg{width:14px;height:14px}
+.mc-play:hover{filter:brightness(1.07)}
+.onb .music-card{margin:4px 0 22px}
+@media (max-width:640px){ .music-card{width:100%} .mc-sub{max-width:none} }
+/* rating tiles: fit all five in one row when there is room; labels on one line */
+.rtiles{grid-template-columns:repeat(auto-fill,minmax(86px,1fr))}
+.rtile{padding:10px}
+.rtile .rl{font-size:.74rem;line-height:1.25;overflow-wrap:anywhere}
+.rtiles{gap:6px}
+.rtile{padding:9px 8px}
+.rtile .rl{white-space:nowrap}

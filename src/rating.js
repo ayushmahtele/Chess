@@ -76,7 +76,7 @@ export const CATEGORIES = [
   { id: 'blitz', label: 'Blitz', icon: '🔥' },
   { id: 'rapid', label: 'Rapid', icon: '⏱' },
   { id: 'noclock', label: 'No clock', icon: '♾' },
-  { id: 'computer', label: 'vs Computer', icon: '🤖' },
+  { id: 'computer', label: 'vs Computer', short: 'Computer', icon: '🤖' },
 ];
 export const ONLINE_CATS = ['bullet', 'blitz', 'rapid', 'noclock'];
 export const catInfo = id => CATEGORIES.find(c => c.id === id);

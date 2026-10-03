@@ -80,7 +80,7 @@ export async function profileView(main, _p, ctx) {
     const body = [];
     if (sel === 'overall') {
       body.push(h('div.rtiles.big', CATEGORIES.map(c => { const st = statsFor(c.id);
-        return h('button.rtile', { on: { click: () => { sel = c.id; ratingsCard_render(); } } }, h('span.rl', c.icon + ' ' + c.label),
+        return h('button.rtile', { title: c.label, on: { click: () => { sel = c.id; ratingsCard_render(); } } }, h('span.rl', c.icon + ' ' + (c.short || c.label)),
           h('b', R[c.id].rating, isProvisional(R[c.id].rd) ? h('span.q', '?') : ''), h('small', games ? plural(st.n, 'game') : '…')); })),
         h('p.muted', { style: { margin: '12px 0 0', fontSize: '.85rem' } }, 'Each type of game has its own rating. They all started at your level and change only when you play rated games of that type. Tap one for its details.'));
     } else {
