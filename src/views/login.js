@@ -119,7 +119,9 @@ export async function loginView(main, _p, ctx) {
     try { r = await fetch('/api/' + name, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
     catch { throw new Error('Could not reach the server. Check your internet connection.'); }
     const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.error || (r.status === 404 ? 'Password reset by email is not set up on this site yet. Use "Continue with Google" instead.' : 'Something went wrong. Please try again.'));
+    if (!r.ok) throw new Error(j.error || (r.status === 404 ? 'Password reset by email is not set up on this site yet. Use "Continue with Google" instead.'
+      : r.status === 504 ? 'The server took too long to send the email. Please try again in a minute.'
+      : `The server had a problem (error ${r.status}). Please try again in a minute.`));
     return j;
   }
 

@@ -9,11 +9,17 @@ export const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 export class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 
 let projectId = null, secret = null;
-function serviceAccount() {
+export function serviceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) return null;
-  const text = raw.trim().startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8');
-  return JSON.parse(text);
+  let json;
+  try {
+    const text = raw.trim().startsWith('{') ? raw.trim() : Buffer.from(raw.trim(), 'base64').toString('utf8');
+    json = JSON.parse(text);
+  } catch { throw new HttpError(503, 'The Firebase key (FIREBASE_SERVICE_ACCOUNT) is not complete. Paste the WHOLE downloaded .json file, from the first { to the last }.'); }
+  if (!json.private_key || !json.client_email) throw new HttpError(503, 'The Firebase key (FIREBASE_SERVICE_ACCOUNT) is the wrong file. Use the key from Project settings → Service accounts → Generate new private key.');
+  json.private_key = json.private_key.replace(/\\n/g, '\n');          // keys pasted with literal \n
+  return json;
 }
 export function adminAuth() {
   if (!getApps().length) {
@@ -35,6 +41,20 @@ export const usernameEmail = u => `${u}@${projectId}.firebaseapp.com`;
 export const codeHash = (uid, code, exp) => crypto.createHmac('sha256', secret).update(`${uid}:${code}:${exp}`).digest('hex');
 export const mask = email => { const [n, d] = email.split('@'); return (n.length <= 2 ? n[0] + '*' : n.slice(0, 2) + '*'.repeat(Math.min(6, n.length - 2))) + '@' + d; };
 
+export function mailer() {
+  const user = (process.env.GMAIL_USER || '').trim(), pass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
+  if (!user || !pass) throw new HttpError(503, 'Sending emails is not set up on this site yet (GMAIL_USER / GMAIL_APP_PASSWORD). Use "Continue with Google" instead.');
+  return nodemailer.createTransport({ host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass },
+    connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 15000 });
+}
+export function mailError(e) {
+  const m = String(e?.message || e);
+  if (e?.code === 'EAUTH' || /535|Username and Password not accepted|Invalid login/i.test(m))
+    return new HttpError(503, 'Gmail rejected the login. Check that GMAIL_USER is the full Gmail address and GMAIL_APP_PASSWORD is a current 16-letter app password for that same account, then redeploy.');
+  if (/ETIMEDOUT|ECONNECTION|ESOCKET|timeout/i.test(m)) return new HttpError(503, 'Could not reach Gmail to send the email. Please try again in a minute.');
+  return new HttpError(502, 'The email could not be sent (' + (e?.code || 'error') + '). Please try again in a minute.');
+}
+
 export async function sendCode(to, code) {
   const subject = `${code} is your Chess Throne password reset code`;
   const text = `Your Chess Throne password reset code is ${code}\n\nIt is valid for 10 minutes. If you didn't ask to reset your password, you can ignore this email.`;
@@ -48,8 +68,9 @@ export async function sendCode(to, code) {
   }
   const user = process.env.GMAIL_USER, pass = (process.env.GMAIL_APP_PASSWORD || '').replace(/\s+/g, '');
   if (!user || !pass) throw new HttpError(503, 'Sending emails is not set up on this site yet. Use "Continue with Google" instead.');
-  const t = nodemailer.createTransport({ service: 'gmail', auth: { user, pass } });
-  await t.sendMail({ from: `"Chess Throne" <${user}>`, to, subject, text, html });
+  const t = mailer();
+  try { await t.sendMail({ from: `"Chess Throne" <${process.env.GMAIL_USER.trim()}>`, to, subject, text, html }); }
+  catch (e) { throw mailError(e); }
 }
 
 /** Wrap a handler: POST + JSON only, friendly errors. */
@@ -63,8 +84,11 @@ export function handler(fn) {
       send(200, await fn(body));
     } catch (e) {
       if (e instanceof HttpError) return send(e.status, { error: e.message });
-      console.error(e);
-      send(500, { error: 'Something went wrong. Please try again in a minute.' });
+      console.error('[reset]', e?.code || '', e?.message || e);
+      const m = String(e?.code || '') + ' ' + String(e?.message || '');
+      if (/credential|invalid_grant|private key|PEM|DECODER|app\/invalid/i.test(m))
+        return send(503, { error: 'The Firebase key (FIREBASE_SERVICE_ACCOUNT) was not accepted. Generate a new private key in Firebase and paste the whole file again, then redeploy.' });
+      send(500, { error: 'Something went wrong on the server (' + (e?.code || 'error') + '). Please try again in a minute.' });
     }
   };
 }
