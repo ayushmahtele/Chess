@@ -9,13 +9,28 @@ export const USERNAME_RE = /^[a-z0-9_]{3,20}$/;
 export class HttpError extends Error { constructor(status, message) { super(message); this.status = status; } }
 
 let projectId = null, secret = null;
+// Pasting can add real line breaks inside the quoted text (e.g. inside the private key). JSON doesn't allow that,
+// so remove line breaks that are inside "…" strings and keep everything else exactly as it was.
+function dropLineBreaksInsideStrings(t) {
+  let out = '', inStr = false, esc = false;
+  for (const ch of t) {
+    if (inStr) {
+      if (esc) { esc = false; out += ch; continue; }
+      if (ch === '\\') { esc = true; out += ch; continue; }
+      if (ch === '"') inStr = false;
+      if (ch === '\n' || ch === '\r') continue;
+      out += ch;
+    } else { if (ch === '"') inStr = true; out += ch; }
+  }
+  return out;
+}
 export function serviceAccount() {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) return null;
   let json;
   try {
     const text = raw.trim().startsWith('{') ? raw.trim() : Buffer.from(raw.trim(), 'base64').toString('utf8');
-    json = JSON.parse(text);
+    try { json = JSON.parse(text); } catch { json = JSON.parse(dropLineBreaksInsideStrings(text)); }   // repair a key pasted with line breaks inside the text
   } catch { throw new HttpError(503, 'The Firebase key (FIREBASE_SERVICE_ACCOUNT) is not complete. Paste the WHOLE downloaded .json file, from the first { to the last }.'); }
   if (!json.private_key || !json.client_email) throw new HttpError(503, 'The Firebase key (FIREBASE_SERVICE_ACCOUNT) is the wrong file. Use the key from Project settings → Service accounts → Generate new private key.');
   json.private_key = json.private_key.replace(/\\n/g, '\n');          // keys pasted with literal \n
