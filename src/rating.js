@@ -68,3 +68,51 @@ export function inflateRd(rd, lastPlayedMs) {
   if (days < 1) return rd;
   return Math.min(NEW_RD, Math.sqrt(rd * rd + 15 * 15 * Math.min(days, 365) / 30));
 }
+
+/* ---------------- rating categories (like chess.com) ---------------- */
+import { TIME_CONTROLS } from './config.js';
+export const CATEGORIES = [
+  { id: 'bullet', label: 'Bullet', icon: '⚡' },
+  { id: 'blitz', label: 'Blitz', icon: '🔥' },
+  { id: 'rapid', label: 'Rapid', icon: '⏱' },
+  { id: 'noclock', label: 'No clock', icon: '♾' },
+  { id: 'computer', label: 'vs Computer', icon: '🤖' },
+];
+export const ONLINE_CATS = ['bullet', 'blitz', 'rapid', 'noclock'];
+export const catInfo = id => CATEGORIES.find(c => c.id === id);
+/** Which online rating a time control counts for. */
+export function categoryOfTc(tcId) {
+  const g = TIME_CONTROLS.find(t => t.id === tcId)?.group;
+  return g === 'Bullet' ? 'bullet' : g === 'Blitz' ? 'blitz' : g === 'Rapid' ? 'rapid' : 'noclock';
+}
+/**
+ * All five ratings of a profile. Older profiles (one computer rating + one online rating) are converted:
+ * vs Computer keeps the old rating; the four online ratings all start from the old online rating
+ * (or the starting level), and from then on change separately.
+ */
+export function ratingsOf(profile) {
+  const r = { ...(profile?.ratings || {}) };
+  if (!r.computer) r.computer = { rating: profile?.rating ?? 1200, rd: profile?.rd ?? START_RD, vol: profile?.vol ?? NEW_VOL,
+    peak: profile?.peak ?? profile?.rating ?? 1200, history: profile?.ratingHistory || [], lastPlayed: profile?.lastPlayed || null };
+  const base = profile?.online || { rating: profile?.startRating ?? profile?.rating ?? 1200, rd: START_RD, vol: NEW_VOL };
+  for (const c of ONLINE_CATS) if (!r[c]) r[c] = { rating: base.rating, rd: base.rd ?? START_RD, vol: base.vol ?? NEW_VOL,
+    peak: base.rating, history: [{ t: profile?.createdAt || Date.now(), r: base.rating }], lastPlayed: base.lastPlayed || null };
+  return r;
+}
+/** New accounts: every category starts at the chosen level. */
+export function startingRatings(rating) {
+  const now = Date.now(), r = {};
+  for (const c of CATEGORIES) r[c.id] = { rating, rd: START_RD, vol: NEW_VOL, peak: rating, history: [{ t: now, r: rating }], lastPlayed: null };
+  return r;
+}
+/** Overall = average of the four online ratings (vs Computer not included). */
+export function overallOf(profile) {
+  const r = ratingsOf(profile), n = ONLINE_CATS.length;
+  return { rating: Math.round(ONLINE_CATS.reduce((s, c) => s + r[c].rating, 0) / n), rd: ONLINE_CATS.reduce((s, c) => s + r[c].rd, 0) / n };
+}
+/** Apply one rated result to a category entry; returns the updated entry. */
+export function rateGame(entry, oppRating, oppRd, score) {
+  const next = glicko2({ rating: entry.rating, rd: inflateRd(entry.rd, entry.lastPlayed), vol: entry.vol }, { rating: oppRating, rd: oppRd }, score);
+  return { ...entry, ...next, peak: Math.max(entry.peak || 0, next.rating), lastPlayed: Date.now(),
+    history: [...(entry.history || []), { t: Date.now(), r: next.rating }].slice(-300) };
+}

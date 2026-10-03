@@ -1,6 +1,6 @@
 import { h, toast, clear } from '../dom.js';
 import { icon } from '../icons.js';
-import { LEVELS, START_RD, NEW_VOL, isProvisional } from '../rating.js';
+import { LEVELS, START_RD, NEW_VOL, isProvisional, startingRatings, ratingsOf } from '../rating.js';
 import { session, cloudEnabled, createCloudProfile, usernameOwner, USERNAME_RE, cleanUsername, friendlyError } from '../store/index.js';
 import { localStore } from '../store/local.js';
 import { APP_NAME } from '../config.js';
@@ -46,11 +46,12 @@ export async function onboardingView(main, _p, ctx) {
     btn.disabled = true;
     try {
       let profile;
-      if (useGuest && hasGuest) profile = { ...guest.profile, name };
+      if (useGuest && hasGuest) profile = { ...guest.profile, name, ratings: ratingsOf(guest.profile) };
       else {
         const L = LEVELS[level];
         profile = { name, level, rating: L.rating, rd: START_RD, vol: NEW_VOL, peak: L.rating, startRating: L.rating,
-          games: 0, wins: 0, losses: 0, draws: 0, createdAt: Date.now(), lastPlayed: null, ratingHistory: [{ t: Date.now(), r: L.rating }] };
+          games: 0, wins: 0, losses: 0, draws: 0, createdAt: Date.now(), lastPlayed: null, ratingHistory: [{ t: Date.now(), r: L.rating }],
+          ratings: startingRatings(L.rating) };
       }
       const nowUser = session().user;                 // read at click time (the page may have been drawn a moment before sign-up finished)
       if (nowUser) {

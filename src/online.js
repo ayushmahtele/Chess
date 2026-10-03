@@ -2,7 +2,7 @@
 // One document per game in the "onlineGames" collection.
 import { Chess } from 'chess.js';
 import { session, usernameOwner, cleanUsername } from './store/index.js';
-import { glicko2, inflateRd, START_RD, NEW_VOL } from './rating.js';
+import { ratingsOf, rateGame, categoryOfTc } from './rating.js';
 import { avatarSrc } from './avatar.js';
 
 export const COLL = 'onlineGames';
@@ -10,11 +10,10 @@ export const LAST_KEY = 'chessarena:lastOnline';
 const db = () => { const d = session().db; if (!d) throw new Error('Online play needs Firebase to be set up.'); return d; };
 const uid = () => session().user?.uid;
 
-export function onlineRating(profile) {
-  return profile?.online || { rating: profile?.startRating ?? profile?.rating ?? 1200, rd: START_RD, vol: NEW_VOL, games: 0, wins: 0, losses: 0, draws: 0, peak: null, history: [] };
-}
-function me(profile) {
-  const o = onlineRating(profile);
+/** The rating that counts for a time control (Bullet, Blitz, Rapid or No clock). */
+export function onlineRating(profile, tcId = '10+0') { return ratingsOf(profile)[categoryOfTc(tcId)]; }
+function me(profile, tcId) {
+  const o = onlineRating(profile, tcId);
   return { name: profile.name, username: profile.username, rating: o.rating, rd: Math.round(o.rd), photo: avatarSrc(profile, session().user) };
 }
 export const colorOf = (g, id = uid()) => g.white === id ? 'w' : g.black === id ? 'b' : null;
@@ -37,7 +36,7 @@ export async function createGame(profile, { tc, rated, color = 'r', invitee = nu
   const d = db(), id = d.newId(COLL), u = uid();
   await d.set(`${COLL}/${id}`, {
     status: 'waiting', public: isPublic, invitee, inviteeName, createdBy: u, createdAt: d.SERVER_TIME,
-    tcId: tc.id, tc, rated, colorPref: color, players: [u], white: null, black: null, p: { [u]: me(profile) },
+    tcId: tc.id, tc, rated, colorPref: color, players: [u], white: null, black: null, p: { [u]: me(profile, tc.id) },
     moves: [], fen: new Chess().fen(), clock: tc.base ? { w: tc.base * 1000, b: tc.base * 1000 } : null, turnStart: null,
     drawOffer: null, result: null, reason: null, lastSeen: { [u]: d.SERVER_TIME }, chat: [], rematch: null,
   });
@@ -66,7 +65,7 @@ export async function joinGame(id, profile) {
     t.update(`${COLL}/${id}`, {
       players: [creator, u], white: creatorWhite ? creator : u, black: creatorWhite ? u : creator,
       status: 'active', startedAt: d.SERVER_TIME, lastMoveAt: d.SERVER_TIME,
-      [`p.${u}`]: me(profile), [`lastSeen.${u}`]: d.SERVER_TIME,
+      [`p.${u}`]: me(profile, g.tcId), [`lastSeen.${u}`]: d.SERVER_TIME,
     });
   });
   localStorage.setItem(LAST_KEY, id);
@@ -179,7 +178,7 @@ export async function offerRematch(id, profile) {
     t.set(`${COLL}/${nid}`, {
       status: 'waiting', public: false, invitee: opp, inviteeName: g.p[opp].username, createdBy: u, createdAt: d.SERVER_TIME,
       tcId: g.tcId, tc: g.tc, rated: g.rated, colorPref: colorOf(g) === 'w' ? 'b' : 'w', players: [u], white: null, black: null,
-      p: { [u]: me(profile) }, moves: [], fen: new Chess().fen(), clock: g.tc.base ? { w: g.tc.base * 1000, b: g.tc.base * 1000 } : null,
+      p: { [u]: me(profile, g.tcId) }, moves: [], fen: new Chess().fen(), clock: g.tc.base ? { w: g.tc.base * 1000, b: g.tc.base * 1000 } : null,
       turnStart: null, drawOffer: null, result: null, reason: null, lastSeen: { [u]: d.SERVER_TIME }, chat: [], rematch: null,
     });
     t.update(`${COLL}/${id}`, { rematch: { by: u, id: nid } });
@@ -199,19 +198,20 @@ export async function saveFinished(g) {
     const color = colorOf(g, u), opp = opponentOf(g, u);
     const outcome = g.result === '*' ? 'aborted' : g.result === '1/2-1/2' ? 'draw' : ((g.result === '1-0') === (color === 'w') ? 'win' : 'loss');
     const rated = g.rated && outcome !== 'aborted';
-    const o = { ...onlineRating(profile) };
+    const cat = categoryOfTc(g.tcId), ratings = ratingsOf(profile);
+    let o = { ...ratings[cat] };
     let ratingBefore = null, ratingAfter = null;
     if (rated) {
       const score = outcome === 'win' ? 1 : outcome === 'draw' ? 0.5 : 0;
-      const next = glicko2({ rating: o.rating, rd: inflateRd(o.rd, o.lastPlayed), vol: o.vol }, { rating: g.p[opp].rating, rd: g.p[opp].rd || 200 }, score);
-      ratingBefore = o.rating; ratingAfter = next.rating;
-      Object.assign(o, next, { peak: Math.max(o.peak || 0, next.rating), history: [...(o.history || []), { t: Date.now(), r: next.rating }].slice(-300) });
+      ratingBefore = o.rating;
+      o = rateGame(o, g.p[opp].rating, g.p[opp].rd || 200, score);
+      ratingAfter = o.rating;
     }
     if (outcome !== 'aborted') {
-      o.games = (o.games || 0) + 1; o.lastPlayed = Date.now();
+      o.games = (o.games || 0) + 1;
       if (outcome === 'win') o.wins = (o.wins || 0) + 1; else if (outcome === 'loss') o.losses = (o.losses || 0) + 1; else o.draws = (o.draws || 0) + 1;
     }
-    profile.online = o;
+    ratings[cat] = o; profile.ratings = ratings;
     const chess = replay(g.moves);
     const label = id => `${g.p[id].name} (@${g.p[id].username})`;
     chess.setHeader('Event', g.rated ? 'Rated online game' : 'Casual online game');
@@ -220,7 +220,7 @@ export async function saveFinished(g) {
     chess.setHeader('Result', g.result); chess.setHeader('Termination', g.reason);
     if (g.tc?.base) chess.setHeader('TimeControl', `${g.tc.base}+${g.tc.inc}`);
     const record = {
-      mode: 'online', onlineId: g.id, rated, color, opponent: g.p[opp].username, opponentName: g.p[opp].name,
+      mode: 'online', onlineId: g.id, rated, color, category: cat, opponent: g.p[opp].username, opponentName: g.p[opp].name,
       timeControl: g.tcId, result: g.result, outcome, reason: g.reason,
       white: label(g.white), black: label(g.black), pgn: chess.pgn(), moves: chess.history(), plies: g.moves.length,
       ratingBefore, ratingAfter, takebacks: 0, hintsUsed: 0,

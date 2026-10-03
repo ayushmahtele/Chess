@@ -2,7 +2,7 @@ import { h, clear, toast, fmtDate } from '../dom.js';
 import { icon } from '../icons.js';
 import { TIME_CONTROLS } from '../config.js';
 import { session, cloudEnabled, friendlyError, cleanUsername } from '../store/index.js';
-import { isProvisional } from '../rating.js';
+import { isProvisional, ratingsOf, categoryOfTc, ONLINE_CATS, catInfo } from '../rating.js';
 import { onlineRating, quickMatch, challenge, createGame, joinGame, declineChallenge, COLL, LAST_KEY } from '../online.js';
 
 const tcLabel = id => TIME_CONTROLS.find(t => t.id === id)?.label || 'No clock';
@@ -26,7 +26,7 @@ export async function onlineLobbyView(main, _p, ctx) {
   function renderSetup() {
     clear(setup).append(
       h('div.field', h('span.lbl', 'Time control'),
-        h('div.chip-group', TIME_CONTROLS.map(t => h('button.chip', { 'aria-pressed': String(settings.tc === t.id), on: { click: () => { settings.tc = t.id; saveSettings(); renderSetup(); } } }, t.label)))),
+        h('div.chip-group', TIME_CONTROLS.map(t => h('button.chip', { 'aria-pressed': String(settings.tc === t.id), on: { click: () => { settings.tc = t.id; saveSettings(); renderSetup(); renderRatings(); } } }, t.label)))),
       h('label.switch', h('span', h('b', 'Rated'), h('small', 'Changes your online rating')),
         h('input.toggle', { type: 'checkbox', checked: settings.rated, on: { change: e => { settings.rated = e.target.checked; saveSettings(); } } })));
   }
@@ -50,7 +50,15 @@ export async function onlineLobbyView(main, _p, ctx) {
   linkBtn.onclick = busy(linkBtn, async () => { const id = await createGame(P, { tc: tcObj(), rated: settings.rated, color: settings.color }); ctx.go('/play/' + id); });
 
   const incoming = h('div.glist');
-  const o = onlineRating(P);
+  const ratingCard = h('div.card');
+  function renderRatings() {
+    const R = ratingsOf(P), sel = categoryOfTc(settings.tc);
+    clear(ratingCard).append(h('h2', 'Online ratings'),
+      h('div.rtiles', ONLINE_CATS.map(id => h('div.rtile', { class: id === sel ? 'sel' : '' }, h('span.rl', catInfo(id).icon + ' ' + catInfo(id).label),
+        h('b', R[id].rating, isProvisional(R[id].rd) ? h('span.q', '?') : ''), h('small', `${R[id].games || 0} ${(R[id].games || 0) === 1 ? 'game' : 'games'}`)))),
+      h('p.muted', { style: { margin: '10px 0 0', fontSize: '.85rem' } }, `This game counts for your ${catInfo(sel).icon} ${catInfo(sel).label} rating. Each time control has its own rating, separate from vs Computer.`));
+  }
+  renderRatings();
   const resume = h('div.resume-slot');
 
   main.append(h('div.page-head', h('div', h('h1', 'Play online'), h('p.muted', { style: { margin: '6px 0 0' } }, `Signed in as @${P.username}`))),
@@ -63,11 +71,7 @@ export async function onlineLobbyView(main, _p, ctx) {
           h('p.muted', { style: { margin: '14px 0 8px' } }, 'Or send a link that anyone with an account can open:'), linkBtn)),
       h('div.side-stack', resume,
         h('div.card', h('h2', 'Challenges for you'), incoming),
-        h('div.card', h('h2', 'Online rating'),
-          h('div.rating-big', h('span.n', o.rating), isProvisional(o.rd) && h('span.q', '?')),
-          h('div.stats-row', h('div.stat', h('b', o.games || 0), h('span', 'Games')), h('div.stat', h('b', o.wins || 0), h('span', 'Won')),
-            h('div.stat', h('b', o.losses || 0), h('span', 'Lost')), h('div.stat', h('b', o.draws || 0), h('span', 'Drawn'))),
-          h('p.muted', { style: { margin: '12px 0 0', fontSize: '.85rem' } }, 'Separate from your rating against the computer.')))));
+        ratingCard)));
 
   const last = localStorage.getItem(LAST_KEY);
   if (last) db.get(`${COLL}/${last}`).then(g => {

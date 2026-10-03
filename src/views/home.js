@@ -2,7 +2,7 @@ import { h, toast, fmtDate } from '../dom.js';
 import { icon } from '../icons.js';
 import { TIME_CONTROLS, BOT_LEVELS, botName } from '../config.js';
 import { getPrefs, setPref } from '../prefs.js';
-import { isProvisional } from '../rating.js';
+import { isProvisional, ratingsOf } from '../rating.js';
 import { session } from '../store/index.js';
 import { Game } from '../game.js';
 import { startGame, activeGame } from './game-view.js';
@@ -14,7 +14,7 @@ export async function homeView(main, _p, ctx) {
   const last = getPrefs().lastSetup || {};
   const setup = {
     mode: last.mode || 'bot', tc: last.tc || '10+0', color: last.color || 'w',
-    botElo: last.botElo || Math.min(2000, Math.max(400, Math.round(P.rating / 200) * 200)),
+    botElo: last.botElo || Math.min(2000, Math.max(400, Math.round(ratingsOf(P).computer.rating / 200) * 200)),
     rated: last.rated ?? true,
   };
 
@@ -25,13 +25,13 @@ export async function homeView(main, _p, ctx) {
     const isBot = setup.mode === 'bot';
     form.append(...[
       h('div.mode-tabs',
-        modeBtn('bot', '🤖', 'Play v/s computer', 'Rated or casual'),
+        modeBtn('bot', '🤖', 'Play the computer', 'Rated or casual'),
         modeBtn('local', '👥', 'Two players', 'Pass and play on one device'),
         h('a.mode', { href: '#/online' }, h('span.mi', '🌐'), h('span', h('b', 'Play online'), h('span', 'Friends or quick match')))),
       h('div.field', h('span.lbl', 'Time control'),
         h('div.tc-group', tcGroups.map(g => [h('span.g', g), h('div.chip-group', TIME_CONTROLS.filter(t => t.group === g).map(t =>
           h('button.chip', { 'aria-pressed': String(setup.tc === t.id), on: { click: () => { setup.tc = t.id; renderForm(); } } }, t.label)))]))),
-      isBot && h('div.field', h('label', { for: 'elo' }, 'Computer Rating'),
+      isBot && h('div.field', h('label', { for: 'elo' }, 'Computer strength'),
         h('div.bot-pick', h('div.elo', setup.botElo), h('div', h('div.nm', botName(setup.botElo)),
           h('small.muted', setup.botElo < 1000 ? 'Makes beginner mistakes' : setup.botElo < 1400 ? 'Sees simple tactics' : setup.botElo < 1800 ? 'Solid club player' : 'Plays its strongest'))),
         h('input.range', { id: 'elo', type: 'range', min: 400, max: 2000, step: 100, value: setup.botElo, on: { input: e => { setup.botElo = +e.target.value; renderFormLight(); } } })),
@@ -77,13 +77,13 @@ export async function homeView(main, _p, ctx) {
         h('button.btn.primary', { on: { click: () => { startGame(saved.cfg, saved); ctx.go('/game'); } } }, 'Resume'),
         h('button.btn', { on: { click: () => { Game.discardSaved(); ctx.go('/'); } } }, 'Discard'))));
   }
-  const prov = isProvisional(P.rd);
+  const R = ratingsOf(P);
+  const tile = id => { const c = { bullet: '⚡ Bullet', blitz: '🔥 Blitz', rapid: '⏱ Rapid', noclock: '♾ No clock', computer: '🤖 vs Computer' }[id];
+    return h('a.rtile', { href: '#/profile' }, h('span.rl', c), h('b', R[id].rating, isProvisional(R[id].rd) ? h('span.q', '?') : '')); };
   side.append(h('div.card',
-    h('h2', 'Your rating'),
-    h('div.rating-big', h('span.n', P.rating), prov && h('span.q', '?'), h('span.muted', prov ? 'provisional' : '')),
-    h('div.stats-row',
-      h('div.stat', h('b', P.games || 0), h('span', 'Games')), h('div.stat', h('b', P.wins || 0), h('span', 'Won')),
-      h('div.stat', h('b', P.losses || 0), h('span', 'Lost')), h('div.stat', h('b', P.draws || 0), h('span', 'Drawn')))));
+    h('h2', 'Your ratings'),
+    h('div.rtiles', ['rapid', 'blitz', 'bullet', 'noclock', 'computer'].map(tile)),
+    h('p.muted', { style: { margin: '10px 0 0', fontSize: '.85rem' } }, 'Each type of game has its own rating. Games against the computer change only your 🤖 vs Computer rating.')));
 
   const recent = h('div.card', h('h2', 'Recent games'), h('p.muted', 'Loading…'));
   side.append(recent);

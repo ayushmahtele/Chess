@@ -14,7 +14,7 @@ import { APP_NAME, TAGLINE } from './config.js';
 import { applyTheme, getPrefs, onPrefs } from './prefs.js';
 import { setSfxVolume } from './audio/sfx.js';
 import { initSession, onSession, session, cloudEnabled, friendlyError, cancelSignup } from './store/index.js';
-import { isProvisional } from './rating.js';
+import { isProvisional, ratingsOf } from './rating.js';
 import { avatar } from './avatar.js';
 import { spotify } from './audio/spotify.js';
 import { musicButton, closeMusic } from './views/music-panel.js';
@@ -92,7 +92,7 @@ function renderUser() {
   if (profile) {
     const pic = avatar(profile, user);
     userSlot.append(h('a.user-chip', { href: '#/profile', title: 'Your profile' }, pic,
-      h('span.nm', profile.name), h('span.r', profile.rating + (isProvisional(profile.rd) ? '?' : ''))));
+      h('span.nm', profile.name), h('span.r', { title: 'Rapid rating' }, h('small.rlabel', '⏱'), (r => r.rating + (isProvisional(r.rd) ? '?' : ''))(ratingsOf(profile).rapid))));
   }
   if (!user && cloudEnabled) userSlot.append(h('a.btn', { href: '#/login' }, h('span', 'Sign in')));
 }

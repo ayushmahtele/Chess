@@ -5,7 +5,7 @@ import { Chess } from 'chess.js';
 import { Game } from '../game.js';
 import { getPrefs } from '../prefs.js';
 import { botName } from '../config.js';
-import { isProvisional } from '../rating.js';
+import { isProvisional, ratingsOf } from '../rating.js';
 import { session } from '../store/index.js';
 import { paintBar, scoreText } from '../evalbar.js';
 import { avatar as makeAvatar } from '../avatar.js';
@@ -96,7 +96,7 @@ export async function gameView(main, _p, ctx) {
     if (G.isBot) {
       if (isHuman) {
         avatar.replaceWith(makeAvatar(P, session().user));
-        nameEl.textContent = P.name; rtEl.textContent = `(${P.rating}${isProvisional(P.rd) ? '?' : ''})`;
+        const cr = ratingsOf(P).computer; nameEl.textContent = P.name; rtEl.textContent = `(${cr.rating}${isProvisional(cr.rd) ? '?' : ''})`;
       } else {
         avatar.textContent = '🤖'; nameEl.textContent = botName(G.cfg.botElo); rtEl.textContent = `(${G.cfg.botElo})`;
       }

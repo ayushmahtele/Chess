@@ -1,16 +1,34 @@
 import { h, clear, confirmBox, toast, fmtDate } from '../dom.js';
 import { icon } from '../icons.js';
 import { session, cloudEnabled, signOut, linkGoogle, addPassword, changePassword, claimUsername, friendlyError } from '../store/index.js';
-import { onlineRating } from '../online.js';
 import { avatar, avatarSrc } from '../avatar.js';
 import { openPhotoEditor } from './photo-editor.js';
-import { LEVELS, isProvisional } from '../rating.js';
+import { LEVELS, isProvisional, ratingsOf, overallOf, categoryOfTc, CATEGORIES, ONLINE_CATS, catInfo } from '../rating.js';
 
 export async function profileView(main, _p, ctx) {
   const P = ctx.profile, { user, store } = session();
-  const prov = isProvisional(P.rd);
-  const total = (P.wins || 0) + (P.losses || 0) + (P.draws || 0);
-  const pct = n => total ? (n / total * 100) : 0;
+  const R = ratingsOf(P), O = overallOf(P);
+  let games = null, sel = 'overall';
+  // Wins / draws / losses come from the saved games, so they always match History.
+  function statsFor(cat) {
+    const list = (games || []).filter(g => g.outcome !== 'aborted' && (cat === 'overall' ? g.mode === 'online'
+      : cat === 'computer' ? g.mode === 'bot' : g.mode === 'online' && categoryOfTc(g.timeControl) === cat));
+    const w = list.filter(g => g.outcome === 'win').length, d = list.filter(g => g.outcome === 'draw').length, l = list.filter(g => g.outcome === 'loss').length;
+    return { n: list.length, w, d, l };
+  }
+  const pctOf = (x, t) => t ? x / t * 100 : 0;
+  const wdl = st => [h('div.wdl', h('i', { style: { width: pctOf(st.w, st.n) + '%', background: 'var(--win)' } }), h('i', { style: { width: pctOf(st.d, st.n) + '%', background: 'var(--draw)' } }), h('i', { style: { width: pctOf(st.l, st.n) + '%', background: 'var(--red)' } })),
+    h('small.muted', `${st.w} won · ${st.d} drawn · ${st.l} lost · ${st.n ? Math.round(pctOf(st.w, st.n)) + '% win rate' : 'no games yet'} (aborted games not counted)`)];
+  const overallStats = h('div');
+  const ratingsCard = h('div.card');
+  function renderOverallStats() {
+    const st = statsFor('overall');
+    clear(overallStats).append(
+      h('div.stats-row', h('div.stat', h('b', games ? st.n : '…'), h('span', 'Games')), h('div.stat', h('b', games ? st.w : '…'), h('span', 'Won')),
+        h('div.stat', h('b', games ? st.d : '…'), h('span', 'Drawn')), h('div.stat', h('b', games ? st.l : '…'), h('span', 'Lost'))),
+      ...wdl(st));
+  }
+  renderOverallStats();
 
   const nameIn = h('input.text-in', { value: P.name, maxlength: 24, 'aria-label': 'Display name' });
   const photo = h('button.avatar-edit', { title: 'Change profile picture', 'aria-label': 'Change profile picture', on: { click: async () => {
@@ -26,15 +44,10 @@ export async function profileView(main, _p, ctx) {
         h('div.prof-head', photo, h('div', h('h2', { style: { margin: 0 } }, P.name),
           h('div.muted', user ? (P.username ? '@' + P.username : '') + (user.email ? ' · ' + user.email : '') : 'Guest account (this browser only)'),
           h('div.muted', `Joined ${fmtDate(P.createdAt)} · Started as ${LEVELS[P.level]?.label || P.level} (${P.startRating})`))),
-        h('div.rating-big', h('span.n', P.rating), prov && h('span.q', '?')),
-        h('p.muted', { style: { margin: '4px 0 0' } }, prov
-          ? 'Provisional rating: it moves a lot until you have played more rated games.'
-          : `Established rating. Peak ${P.peak}.`),
-        h('div.stats-row',
-          h('div.stat', h('b', P.peak || P.rating), h('span', 'Peak')), h('div.stat', h('b', P.games || 0), h('span', 'Games')),
-          h('div.stat', h('b', Math.round(P.rd)), h('span', 'Deviation')), h('div.stat', h('b', total ? Math.round(pct(P.wins)) + '%' : '–'), h('span', 'Win rate'))),
-        h('div.wdl', h('i', { style: { width: pct(P.wins) + '%', background: 'var(--win)' } }), h('i', { style: { width: pct(P.draws) + '%', background: 'var(--draw)' } }), h('i', { style: { width: pct(P.losses) + '%', background: 'var(--red)' } })),
-        h('small.muted', `${P.wins || 0} won · ${P.draws || 0} drawn · ${P.losses || 0} lost (aborted games not counted)`)),
+        h('div.rlabel-big', 'Overall rating'),
+        h('div.rating-big', h('span.n', O.rating), isProvisional(O.rd) && h('span.q', '?')),
+        h('p.muted', { style: { margin: '4px 0 0' } }, 'The average of your ⚡ Bullet, 🔥 Blitz, ⏱ Rapid and ♾ No clock ratings. Games against the computer are not included.'),
+        overallStats),
       h('div.card', h('h2', 'Account'),
         h('div.field', h('label', 'Display name'), h('div', { style: { display: 'flex', gap: '8px' } }, nameIn,
           h('button.btn', { on: { click: async () => { P.name = nameIn.value.trim() || P.name; await store.saveProfile(P); await ctx.refreshProfile(); toast('Name updated'); } } }, 'Save'))),
@@ -43,18 +56,33 @@ export async function profileView(main, _p, ctx) {
             : cloudEnabled && h('a.btn.primary', { href: '#/login' }, 'Sign in or create an account'),
           h('button.btn.danger', { on: { click: resetAll } }, 'Delete all my data'))),
       user && methodsCard()),
-    h('div.side-stack',
-      h('div.card', h('h2', 'Rating vs computer'), graph(P.ratingHistory || [])),
-      user && onlineCard())));
+    h('div.side-stack', ratingsCard)));
 
-  function onlineCard() {
-    const o = onlineRating(P);
-    return h('div.card', h('h2', 'Online rating'),
-      h('div.rating-big', h('span.n', o.rating), isProvisional(o.rd) && h('span.q', '?')),
-      h('div.stats-row', h('div.stat', h('b', o.peak || o.rating), h('span', 'Peak')), h('div.stat', h('b', o.games || 0), h('span', 'Games')),
-        h('div.stat', h('b', o.wins || 0), h('span', 'Won')), h('div.stat', h('b', o.losses || 0), h('span', 'Lost'))),
-      (o.history || []).length >= 2 && h('div', { style: { marginTop: '14px' } }, graph(o.history)));
+  function ratingsCard_render() {
+    const body = [];
+    if (sel === 'overall') {
+      body.push(h('div.rtiles.big', CATEGORIES.map(c => { const st = statsFor(c.id);
+        return h('button.rtile', { on: { click: () => { sel = c.id; ratingsCard_render(); } } }, h('span.rl', c.icon + ' ' + c.label),
+          h('b', R[c.id].rating, isProvisional(R[c.id].rd) ? h('span.q', '?') : ''), h('small', games ? `${st.n} ${st.n === 1 ? 'game' : 'games'}` : '…')); })),
+        h('p.muted', { style: { margin: '12px 0 0', fontSize: '.85rem' } }, 'Each type of game has its own rating. They all started at your level and change only when you play rated games of that type. Tap one for its details.'));
+    } else {
+      const e = R[sel], st = statsFor(sel), prov = isProvisional(e.rd);
+      body.push(
+        h('div.rating-big', h('span.n', e.rating), prov && h('span.q', '?'), h('span.muted', prov ? 'provisional' : '')),
+        h('div.stats-row', h('div.stat', h('b', e.peak || e.rating), h('span', 'Peak')), h('div.stat', h('b', games ? st.n : '…'), h('span', 'Games')),
+          h('div.stat', h('b', games ? st.w : '…'), h('span', 'Won')), h('div.stat', h('b', games ? st.l : '…'), h('span', 'Lost'))),
+        ...wdl(st),
+        h('div', { style: { marginTop: '14px' } }, graph(e.history || [])),
+        h('p.muted', { style: { margin: '10px 0 0', fontSize: '.85rem' } }, sel === 'computer' ? 'Changes only with rated games against the computer.'
+          : `Changes only with rated online ${catInfo(sel).label === 'No clock' ? 'games without a clock' : catInfo(sel).label + ' games'} (${({ bullet: '1 min, 2 | 1', blitz: '3 min, 3 | 2, 5 min', rapid: '10 min, 15 | 10, 30 min', noclock: 'no clock' })[sel]}).`));
+    }
+    clear(ratingsCard).append(h('h2', 'Ratings'),
+      h('div.chip-group.timefilter', [['overall', 'Overall'], ...CATEGORIES.map(c => [c.id, c.icon + ' ' + c.label])].map(([k, l]) =>
+        h('button.chip', { 'aria-pressed': String(sel === k), on: { click: () => { sel = k; ratingsCard_render(); } } }, l))),
+      ...body);
   }
+  ratingsCard_render();
+  store.listGames().then(gs => { games = gs; renderOverallStats(); ratingsCard_render(); }).catch(() => { games = []; renderOverallStats(); ratingsCard_render(); });
 
   function methodsCard() {
     const hasG = user.providers.includes('google.com'), hasPw = user.providers.includes('password');

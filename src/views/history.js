@@ -2,6 +2,7 @@ import { h, clear, confirmBox, toast, fmtDate } from '../dom.js';
 import { icon } from '../icons.js';
 import { session } from '../store/index.js';
 import { TIME_CONTROLS } from '../config.js';
+import { categoryOfTc } from '../rating.js';
 
 const tcName = id => TIME_CONTROLS.find(t => t.id === id)?.label || 'No clock';
 
@@ -21,20 +22,24 @@ export function gameRow(g, onDelete) {
 
 export async function historyView(main) {
   const store = session().store;
-  let games = [], filter = 'all';
+  let games = [], filter = 'all', time = 'all';
   const list = h('div.glist', h('p.muted', 'Loading your games…'));
   const filters = h('div.filters');
   const FILTERS = [['all', 'All'], ['win', 'Wins'], ['loss', 'Losses'], ['draw', 'Draws'], ['aborted', 'Aborted'], ['online', 'Online'], ['bot', 'vs Computer'], ['local', 'Same device'], ['rated', 'Rated']];
   const delAll = h('button.btn', { on: { click: deleteAll } }, icon('trash'), 'Delete all');
 
   function match(g) {
+    if (time !== 'all') { if (time === 'computer' ? g.mode !== 'bot' : (g.mode === 'bot' || categoryOfTc(g.timeControl) !== time)) return false; }
     if (filter === 'all') return true;
     if (filter === 'bot' || filter === 'local' || filter === 'online') return g.mode === filter;
     if (filter === 'rated') return g.rated;
     return g.outcome === filter;
   }
   function render() {
-    clear(filters).append(...FILTERS.map(([k, l]) => h('button.chip', { 'aria-pressed': String(filter === k), on: { click: () => { filter = k; render(); } } }, l)));
+    const TIMES = [['all', 'All times'], ['bullet', '⚡ Bullet'], ['blitz', '🔥 Blitz'], ['rapid', '⏱ Rapid'], ['noclock', '♾ No clock'], ['computer', '🤖 vs Computer']];
+    clear(filters).append(
+      h('div.frow', h('span.flabel', 'Time'), TIMES.map(([k, l]) => h('button.chip', { 'aria-pressed': String(time === k), on: { click: () => { time = k; render(); } } }, l))),
+      h('div.frow', h('span.flabel', 'Show'), FILTERS.map(([k, l]) => h('button.chip', { 'aria-pressed': String(filter === k), on: { click: () => { filter = k; render(); } } }, l))));
     const shown = games.filter(match);
     delAll.disabled = !games.length;
     clear(list);

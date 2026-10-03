@@ -2,7 +2,7 @@
 import { Chess } from 'chess.js';
 import { think, resetEngine } from './engine-client.js';
 import { sfx } from './audio/sfx.js';
-import { glicko2, inflateRd } from './rating.js';
+import { ratingsOf, rateGame } from './rating.js';
 import { session } from './store/index.js';
 import { botName } from './config.js';
 
@@ -226,13 +226,14 @@ export class Game {
     if (this.cfg.tc?.base) this.chess.header('TimeControl', `${this.cfg.tc.base}+${this.cfg.tc.inc}`);
 
     if (rated) {
-      const rd = inflateRd(profile.rd, profile.lastPlayed);
       const score = r.outcome === 'win' ? 1 : r.outcome === 'draw' ? 0.5 : 0;
-      const next = glicko2({ rating: profile.rating, rd, vol: profile.vol }, { rating: this.cfg.botElo, rd: 60 }, score);
-      r.ratingBefore = profile.rating; r.ratingAfter = next.rating;
-      profile.rating = next.rating; profile.rd = next.rd; profile.vol = next.vol;
+      const ratings = ratingsOf(profile);
+      const next = rateGame(ratings.computer, this.cfg.botElo, 60, score);
+      r.ratingBefore = ratings.computer.rating; r.ratingAfter = next.rating;
+      ratings.computer = next; profile.ratings = ratings;
+      profile.rating = next.rating; profile.rd = next.rd; profile.vol = next.vol;   // older fields kept in step
       profile.peak = Math.max(profile.peak || 0, next.rating);
-      profile.ratingHistory = [...(profile.ratingHistory || []), { t: Date.now(), r: next.rating }].slice(-300);
+      profile.ratingHistory = next.history;
     }
     if (profile) {
       profile.games = (profile.games || 0) + 1;
