@@ -25,13 +25,13 @@ export async function homeView(main, _p, ctx) {
     const isBot = setup.mode === 'bot';
     form.append(...[
       h('div.mode-tabs',
-        modeBtn('bot', '🤖', 'Play the computer', 'Rated or casual'),
+        modeBtn('bot', '🤖', 'Play with computer', 'Rated or casual'),
         modeBtn('local', '👥', 'Two players', 'Pass and play on one device'),
         h('a.mode', { href: '#/online' }, h('span.mi', '🌐'), h('span', h('b', 'Play online'), h('span', 'Friends or quick match')))),
       h('div.field', h('span.lbl', 'Time control'),
         h('div.tc-group', tcGroups.map(g => [h('span.g', g), h('div.chip-group', TIME_CONTROLS.filter(t => t.group === g).map(t =>
           h('button.chip', { 'aria-pressed': String(setup.tc === t.id), on: { click: () => { setup.tc = t.id; renderForm(); } } }, t.label)))]))),
-      isBot && h('div.field', h('label', { for: 'elo' }, 'Computer strength'),
+      isBot && h('div.field', h('label', { for: 'elo' }, 'Computer Rating'),
         h('div.bot-pick', h('div.elo', setup.botElo), h('div', h('div.nm', botName(setup.botElo)),
           h('small.muted', setup.botElo < 1000 ? 'Makes beginner mistakes' : setup.botElo < 1400 ? 'Sees simple tactics' : setup.botElo < 1800 ? 'Solid club player' : 'Plays its strongest'))),
         h('input.range', { id: 'elo', type: 'range', min: 400, max: 2000, step: 100, value: setup.botElo, on: { input: e => { setup.botElo = +e.target.value; renderFormLight(); } } })),
