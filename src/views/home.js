@@ -25,7 +25,7 @@ export async function homeView(main, _p, ctx) {
     const isBot = setup.mode === 'bot';
     form.append(...[
       h('div.mode-tabs',
-        modeBtn('bot', '🤖', 'Play with computer', 'Rated or casual'),
+        modeBtn('bot', '🤖', 'Play v/s computer', 'Rated or casual'),
         modeBtn('local', '👥', 'Two players', 'Pass and play on one device'),
         h('a.mode', { href: '#/online' }, h('span.mi', '🌐'), h('span', h('b', 'Play online'), h('span', 'Friends or quick match')))),
       h('div.field', h('span.lbl', 'Time control'),
