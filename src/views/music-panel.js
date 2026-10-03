@@ -57,7 +57,7 @@ function updateTime({ cur, dur }) {
 
 function spotifySection() {
   const link = spotify.link, list = spotify.list;
-  const input = h('input.text-in.sp-input', { placeholder: list.length ? 'Paste another Spotify link' : 'Paste a Spotify link (playlist, album, song…)', 'aria-label': 'Spotify link' });
+  const input = h('input.text-in.sp-input', { placeholder: 'Paste a Spotify song or playlist link here', 'aria-label': 'Spotify link' });
   const err = h('p.note.sp-err');
   const go = () => {
     const l = parseSpotify(input.value);
@@ -78,11 +78,12 @@ function spotifySection() {
     list.length > 0 && h('div.sp-list', list.map(row)),
     h('div.sp-row', input, h('button.btn', { on: { click: go } }, 'Add')),
     err,
-    link && h('details.sp-help', h('summary', 'Only part of each song plays ("Preview")?'),
+    link && h('details.sp-help', h('summary', 'Want to play the full song without limits?'),
       h('ol',
         h('li', 'Log in at ', h('a', { href: 'https://open.spotify.com', target: '_blank', rel: 'noopener' }, 'open.spotify.com'), ' in this same browser, then come back and reload this page.'),
         h('li', 'Still "Preview"? Your browser is blocking Spotify\'s login inside other websites (Incognito windows always do). In Chrome click the icon left of the web address → turn on ', h('b', 'Third-party cookies'), ' for this site, then reload.'),
-        h('li', 'Or use ', h('b', 'Open in Spotify ↗'), ': the Spotify app always plays full songs.'))),
+        h('li', 'Or use ', h('b', 'Open in Spotify ↗'), ': the Spotify app always plays full songs.'),
+        h('li', 'Ads come from Spotify itself: free Spotify accounts hear ads, Spotify Premium removes them.'))),
     !list.length && h('p.note', 'Add as many playlists, albums or songs as you like. They are saved to your account, so they are here every time, on every device you sign in.'));
 }
 
@@ -111,7 +112,7 @@ function render() {
     h('div.sub', 'Built-in tracks'),
     h('div.tracks', music.tracks.filter(t => t.builtin).map(trackRow)),
     h('div.sub', 'My songs'),
-    music.userSongs.length ? h('div.tracks', music.tracks.filter(t => !t.builtin).map(trackRow)) : h('p.note', 'Add songs you own from your device. They stay on this device and are never uploaded.'),
+    music.userSongs.length ? h('div.tracks', music.tracks.filter(t => !t.builtin).map(trackRow)) : h('p.note', 'Add songs from your device. They stay in this browser on this device and won\'t disappear unless you remove them or clear this site\'s data.'),
     file,
     h('button.btn', { style: { width: '100%', marginTop: '6px' }, on: { click: () => file.click() } }, icon('plus'), 'Add songs'),
     spotifySection(),

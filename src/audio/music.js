@@ -161,6 +161,7 @@ class MusicPlayer {
     this.emit();
   }
   async addFiles(files) {
+    try { await navigator.storage?.persist?.(); } catch {}   // keep songs: stop the browser clearing them automatically
     for (const f of files) {
       if (!f.type.startsWith('audio/')) continue;
       const id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);

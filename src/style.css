@@ -770,3 +770,12 @@ div.level:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .tip ul{margin:4px 0 8px;padding-left:18px;color:var(--muted)}
 .tip ul:last-child{margin-bottom:0}
 .tip-wrap:hover .tip,.tip-wrap:focus-within .tip{opacity:1;visibility:visible;transform:none}
+/* half white / half black king for "Random colour" */
+.split-king{position:relative;width:30px;height:30px;display:inline-block}
+.split-king img{position:absolute;inset:0;width:100%;height:100%}
+.split-king .l{clip-path:inset(0 50% 0 0)}
+.split-king .r{clip-path:inset(0 0 0 50%)}
+/* ad-free music highlight */
+.music-hl{display:inline-flex;flex-wrap:wrap;gap:4px;align-items:baseline;margin:6px 0 16px;padding:8px 14px;border-radius:999px;
+  background:color-mix(in srgb,var(--gold) 14%,transparent);border:1px solid color-mix(in srgb,var(--gold) 40%,transparent);color:var(--text);font-size:.92rem}
+.music-hl b{color:var(--gold)}

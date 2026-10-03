@@ -38,7 +38,7 @@ export async function homeView(main, _p, ctx) {
       isBot && h('div.field', h('span.lbl', 'Play as'),
         h('div.color-pick', [['w', 'White', 'wK'], ['r', 'Random', null], ['b', 'Black', 'bK']].map(([c, label, img]) =>
           h('button', { 'aria-pressed': String(setup.color === c), on: { click: () => { setup.color = c; renderForm(); } } },
-            img ? h('img', { src: pieceUrl({ color: img[0], type: img[1].toLowerCase() }, { small: true }), alt: '' }) : h('span', { style: { fontSize: '1.4rem' } }, '🎲'), label)))),
+            img ? h('img', { src: pieceUrl({ color: img[0], type: img[1].toLowerCase() }, { small: true }), alt: '' }) : h('span.split-king', { 'aria-hidden': 'true' }, h('img.l', { src: pieceUrl({ color: 'w', type: 'k' }, { small: true }), alt: '' }), h('img.r', { src: pieceUrl({ color: 'b', type: 'k' }, { small: true }), alt: '' })), label)))),
       isBot && h('label.switch', h('span', h('b', 'Rated game'), h('small', setup.rated ? 'Your rating changes. No takebacks, hints or evaluation bar.' : 'Practice freely with takebacks, hints and the evaluation bar.')),
         h('input.toggle', { type: 'checkbox', checked: setup.rated, on: { change: e => { setup.rated = e.target.checked; renderForm(); } } })),
       h('div', { style: { marginTop: '20px' } }, h('button.btn.primary.big', { on: { click: start } }, icon('play'), 'Start game')),
@@ -94,6 +94,6 @@ export async function homeView(main, _p, ctx) {
   }).catch(e => { recent.lastChild.textContent = 'Could not load games: ' + e.message; });
 
   main.append(h('div.home',
-    h('section.home-hero', h('div.hero-row', h('img.hero-king', { src: '/pieces3d/wood/wK.webp', alt: '' }), h('h1', `Ready to play, ${P.name}?`)), h('p', 'Challenge the computer at your level, play a friend on this device, or take on players online.'), h('div.card', form)),
+    h('section.home-hero', h('div.hero-row', h('img.hero-king', { src: '/pieces3d/wood/wK.webp', alt: '' }), h('h1', `Ready to play, ${P.name}?`)), h('p.music-hl', '♫ ', h('b', 'Enjoy every game with ad-free music'), ' — built-in tracks or your own songs, in the 🎵 menu.'), h('p', 'Challenge the computer at your level, play a friend on this device, or play with players online.'), h('div.card', form)),
     side));
 }

@@ -69,7 +69,7 @@ export async function onlineLobbyView(main, _p, ctx) {
         h('div.card', h('h2', 'Quick match'), h('p.muted', 'Play the next person looking for a game with the same settings.'), quickBtn),
         h('div.card', h('h2', 'Challenge a friend'),
           h('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } }, friendIn, colorSel, chBtn),
-          h('p.muted', { style: { margin: '14px 0 8px' } }, 'Or send a link that anyone with an account can open:'), linkBtn)),
+          h('p.muted', { style: { margin: '14px 0 8px' } }, 'Or send a link that anyone with an account can open and play:'), linkBtn)),
       h('div.side-stack', resume,
         h('div.card', h('h2', 'Challenges for you'), incoming),
         ratingCard)));

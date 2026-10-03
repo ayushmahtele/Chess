@@ -72,7 +72,8 @@ export async function onboardingView(main, _p, ctx) {
   main.append(h('section.onb',
     h('h1', `Welcome to ${APP_NAME}`),
     h('p.muted', hasGuest ? 'You already played here as a guest. Bring that progress into your account, or start fresh.'
-      : 'Pick the level that fits you. It sets your starting rating: Beginner 800, Intermediate 1200 or Pro 1600. Your first couple of games move your rating a lot, so a Pro who loses early drops fast, and it settles as you play more.'),
+      : 'Pick the level that fits you. It sets your starting rating. Your first couple of games move your rating a lot, so a Pro who loses early drops fast, and it settles as you play more.'),
+    h('p.music-hl', '♫ ', h('b', 'Enjoy every game with ad-free music'), ' — built-in tracks or your own songs, in the 🎵 menu.'),
     levelBox,
     user && h('div.field', h('label', { for: 'un' }, 'Username'), userIn, avail, !lockedUser && h('small.muted', 'Friends use this to challenge you online. It can\'t be changed later.')),
     h('div.field', h('label', { for: 'nm' }, 'Display name'), nameIn),
